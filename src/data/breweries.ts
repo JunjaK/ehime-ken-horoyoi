@@ -53,12 +53,6 @@ export const VENUE = {
   when: '10/2(금) 접수 18:00 · 건배 19:00',
 } as const;
 
-export const MATCH_COLOR: Record<MatchRank, string> = {
-  1: '#c8621f',
-  2: '#3f5570',
-  3: '#a9a094',
-};
-
 export const MATCH_LABEL: Record<MatchRank, string> = {
   1: '★ 취향 최우선',
   2: '다음 우선순위',

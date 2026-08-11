@@ -1,0 +1,110 @@
+@import 'tailwindcss';
+
+/*
+ * shadcn 다크 팔레트(neutral) 고정. 라이트 모드는 지원하지 않는다.
+ * 나중에 라이트를 넣게 되면 이 블록을 `:root` + `@theme inline` 으로 쪼개고
+ * `.dark` 오버라이드를 얹으면 된다 (shadcn 기본 구조와 동일).
+ */
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+  --font-jp: 'Pretendard JP Variable', 'Pretendard Variable', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-background: oklch(0.145 0 0);
+  --color-foreground: oklch(0.985 0 0);
+  --color-card: oklch(0.205 0 0);
+  --color-card-foreground: oklch(0.985 0 0);
+  --color-muted: oklch(0.269 0 0);
+  --color-muted-foreground: oklch(0.708 0 0);
+  --color-accent: oklch(0.32 0 0);
+  --color-accent-foreground: oklch(0.985 0 0);
+  --color-border: oklch(1 0 0 / 10%);
+  --color-input: oklch(1 0 0 / 15%);
+  --color-ring: oklch(0.556 0 0);
+
+  /*
+   * 우선순위 3색. 밝은 지도 타일용이던 원래 값(#c8621f/#3f5570/#a9a094)은
+   * 다크에서 뭉개져 명도 0.72~0.75 대로 올렸다. 이 위에 얹는 글자는
+   * 흰색이 아니라 --color-background(거의 검정)여야 대비가 7:1 이상 나온다.
+   */
+  --color-match-1: oklch(0.75 0.16 60);
+  --color-match-2: oklch(0.7 0.13 235);
+  --color-match-3: oklch(0.72 0.03 90);
+
+  --radius-sm: calc(0.625rem - 4px);
+  --radius-md: calc(0.625rem - 2px);
+  --radius-lg: 0.625rem;
+  --radius-xl: calc(0.625rem + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 일본어 본문은 Pretendard JP 로 (가나·한자 글리프가 다르다). */
+  :lang(ja) {
+    font-family: var(--font-jp);
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/*
+ * Leaflet 이 만드는 DOM 은 Astro/Tailwind 밖이라 여기서 다크로 맞춘다.
+ * 이걸 빼면 지도 위 컨트롤·툴팁만 흰색으로 남는다.
+ */
+@layer components {
+  .leaflet-container {
+    background: var(--color-muted);
+    font-family: var(--font-sans);
+  }
+
+  .leaflet-bar a,
+  .leaflet-bar a:hover {
+    background: var(--color-card);
+    color: var(--color-foreground);
+    border-bottom-color: var(--color-border);
+  }
+
+  .leaflet-bar a:hover {
+    background: var(--color-accent);
+  }
+
+  .leaflet-touch .leaflet-bar {
+    border-color: var(--color-border);
+  }
+
+  .leaflet-tooltip {
+    background: var(--color-card);
+    color: var(--color-card-foreground);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px oklch(0 0 0 / 45%);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 10px;
+  }
+
+  .leaflet-tooltip-top::before {
+    border-top-color: var(--color-border);
+  }
+
+  .leaflet-control-attribution {
+    background: oklch(0.145 0 0 / 75%) !important;
+    color: var(--color-muted-foreground);
+  }
+
+  .leaflet-control-attribution a {
+    color: var(--color-muted-foreground);
+  }
+}

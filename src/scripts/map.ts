@@ -1,10 +1,25 @@
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ALL_REGIONS, BREWERIES, MATCH_COLOR, VENUE, type Brewery } from '../data/breweries.ts';
+import { ALL_REGIONS, BREWERIES, VENUE, type Brewery, type MatchRank } from '../data/breweries.ts';
 import { spreadPoints, type SpreadPoint } from '../lib/spread.ts';
 
 /** 마커끼리 확보할 최소 화면 간격(px). */
 const MIN_MARKER_GAP = 34;
+
+/**
+ * 마커 색의 SSOT 는 global.css 의 @theme 토큰이다.
+ * 여기에 값을 복제하면 팔레트를 바꿀 때 지도만 옛 색으로 남는다.
+ */
+const theme = getComputedStyle(document.documentElement);
+const token = (name: string) => theme.getPropertyValue(name).trim();
+
+const MATCH_COLOR: Record<MatchRank, string> = {
+  1: token('--color-match-1'),
+  2: token('--color-match-2'),
+  3: token('--color-match-3'),
+};
+const BACKGROUND = token('--color-background');
+const FOREGROUND = token('--color-foreground');
 
 /** 회장 마커의 가상 id. 실제 브랜드 id(1~19)와 겹치지 않는다. */
 const VENUE_ID = 0;
@@ -19,8 +34,13 @@ const mapEl = required<HTMLDivElement>('#map');
 const regionEl = required<HTMLSelectElement>('#region');
 const countEl = required<HTMLElement>('#count');
 const emptyEl = required<HTMLElement>('#empty');
-const rowEls = Array.from(document.querySelectorAll<HTMLButtonElement>('.row'));
-const detailEls = Array.from(document.querySelectorAll<HTMLElement>('.detail'));
+// 스타일 클래스가 아니라 구조로 잡는다. 클래스는 리디자인 때 갈리고, 셀렉터는 조용히 죽는다.
+const rowEls = Array.from(document.querySelectorAll<HTMLButtonElement>('#list button[data-id]'));
+const detailEls = Array.from(document.querySelectorAll<HTMLElement>('#details article[data-id]'));
+
+if (rowEls.length === 0 || detailEls.length === 0) {
+  throw new Error(`목록/상세 엘리먼트를 못 찾음 (rows=${rowEls.length}, details=${detailEls.length})`);
+}
 
 const byId = new Map(BREWERIES.map((b) => [b.id, b]));
 const markers = new Map<number, L.Marker>();
@@ -34,20 +54,21 @@ const isVisible = (b: Brewery) => region === ALL_REGIONS || b.region === region;
 function markerIcon(b: Brewery, active: boolean) {
   const size = active ? 32 : 25;
   const color = MATCH_COLOR[b.match];
+  // 밝은 원 위에 어두운 숫자 (흰 글자는 이 명도대에서 대비가 안 나온다).
   const html =
-    `<div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;` +
-    `background:${active ? '#1c1a17' : color};color:#fff;` +
-    `font:600 ${active ? 13 : 11.5}px/1 'IBM Plex Mono',monospace;` +
+    `<div style="width:${size}px;height:${size}px;border-radius:50%;` +
+    `background:${active ? FOREGROUND : color};color:${BACKGROUND};` +
+    `font:600 ${active ? 13 : 11.5}px/1 var(--font-sans);font-variant-numeric:tabular-nums;` +
     `display:flex;align-items:center;justify-content:center;` +
-    `box-shadow:0 ${active ? '4px 14px rgba(28,26,23,.42)' : '2px 6px rgba(28,26,23,.28)'};` +
-    `border:2px solid ${active ? color : '#f7f4ee'};transition:all .14s">${b.id}</div>`;
+    `box-shadow:0 ${active ? '4px 14px' : '2px 6px'} oklch(0 0 0 / 55%);` +
+    `border:2px solid ${active ? color : BACKGROUND};transition:all .14s">${b.id}</div>`;
 
   return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
 const map = L.map(mapEl, { zoomControl: true, scrollWheelZoom: true, minZoom: 7, maxZoom: 14 });
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; OpenStreetMap &copy; CARTO',
   subdomains: 'abcd',
   maxZoom: 18,
@@ -75,9 +96,9 @@ L.marker([VENUE.lat, VENUE.lng], {
   zIndexOffset: -600,
   icon: L.divIcon({
     html:
-      `<div style="width:30px;height:30px;border-radius:50%;background:#1c1a17;border:3px solid #f7f4ee;` +
-      `box-shadow:0 3px 10px rgba(28,26,23,.4);display:flex;align-items:center;justify-content:center;` +
-      `color:#f7f4ee;font:600 13px/1 'Noto Serif KR',serif">祭</div>`,
+      `<div style="width:30px;height:30px;border-radius:50%;background:${FOREGROUND};border:3px solid ${BACKGROUND};` +
+      `box-shadow:0 3px 10px oklch(0 0 0 / 55%);display:flex;align-items:center;justify-content:center;` +
+      `color:${BACKGROUND};font:600 13px/1 var(--font-jp)">祭</div>`,
     className: '',
     iconSize: [30, 30],
     iconAnchor: [15, 15],
@@ -116,7 +137,7 @@ function render() {
     const id = Number(row.dataset.id);
     const shown = region === ALL_REGIONS || row.dataset.region === region;
     row.hidden = !shown;
-    row.classList.toggle('is-active', id === activeId);
+    row.setAttribute('aria-current', String(id === activeId));
     if (shown) visibleCount++;
   }
   countEl.textContent = String(visibleCount);

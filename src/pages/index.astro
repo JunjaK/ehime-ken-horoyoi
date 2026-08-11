@@ -1,5 +1,19 @@
 ---
 import { BREWERIES, MATCH_LABEL, REGION_FILTERS, REGION_LABEL_KO, tasteBars } from '../data/breweries.ts';
+import '../styles/global.css';
+
+// 클래스명을 문자열 그대로 적어야 Tailwind 스캐너가 잡는다. 문자열 조합 금지.
+const DOT_BG: Record<number, string> = { 1: 'bg-match-1', 2: 'bg-match-2', 3: 'bg-match-3' };
+const BADGE: Record<number, string> = {
+  1: 'border-match-1/40 text-match-1',
+  2: 'border-match-2/40 text-match-2',
+  3: 'border-match-3/40 text-match-3',
+};
+const BAR_BG: Record<number, string> = { 1: 'bg-match-1', 2: 'bg-match-2', 3: 'bg-match-3' };
+
+const EYEBROW = 'font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase';
+const CARD = 'rounded-xl border border-border bg-card';
+const SPEC_KEY = 'text-muted-foreground';
 ---
 
 <!doctype html>
@@ -7,76 +21,104 @@ import { BREWERIES, MATCH_LABEL, REGION_FILTERS, REGION_LABEL_KO, tasteBars } fr
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
     <title>에히메현 양조장 지도 · 호로요이 페스타 2026</title>
     <meta
       name="description"
       content="호로요이 페스타 2026(2026.10.02 마쓰야마 조자야마 공원) 참가 19개 브랜드의 위치, 맛 프로필, 우선 시도할 술과 부스에서 쓸 일본어 문장."
     />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp-dynamic-subset.min.css"
     />
   </head>
 
-  <body>
-    <header class="head">
-      <div class="head-main">
-        <p class="tag accent">ほろよいフェスタ 2026 · 2026.10.02 松山城山公園</p>
-        <h1>에히메현 양조장 지도</h1>
-        <p class="lede">
+  <body class="flex min-h-screen flex-col">
+    <header class="flex flex-wrap items-end gap-x-8 gap-y-4 border-b border-border px-6 py-6">
+      <div class="flex-1 basis-80">
+        <p class={EYEBROW}>ほろよいフェスタ 2026 · 2026.10.02 松山城山公園</p>
+        <h1 class="mt-2 text-3xl font-semibold tracking-tight">에히메현 양조장 지도</h1>
+        <p class="mt-2 max-w-[52ch] text-sm leading-relaxed text-pretty text-muted-foreground">
           호로요이 페스타 2026 참가 19개 브랜드. 지도의 점 위에 마우스를 올리거나(모바일은 탭) 왼쪽 목록을 누르면
           양조장 정보가 나옵니다.
         </p>
       </div>
-      <div class="filter">
-        <label class="tag" for="region">지역</label>
-        <select id="region">
+
+      <div class="flex flex-col gap-2">
+        <label for="region" class="text-xs font-medium text-muted-foreground">지역</label>
+        <select
+          id="region"
+          class="h-9 min-w-54 appearance-none rounded-md border border-input bg-transparent bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22><path d=%22M0 0l5 6 5-6z%22 fill=%22%23a1a1a1%22/></svg>')] bg-[length:10px_6px] bg-[position:right_0.75rem_center] bg-no-repeat py-1 pr-8 pl-3 text-sm shadow-xs transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
           {REGION_FILTERS.map((option) => <option value={option.value}>{option.label}</option>)}
         </select>
       </div>
     </header>
 
-    <section class="event">
-      <div class="event-head">
-        <span class="tag accent">행사 정보</span>
-        <span class="event-title">호로요이 페스타 2026</span>
+    <section class={`mx-6 mt-4 p-5 ${CARD}`}>
+      <div class="flex flex-wrap items-baseline gap-3 border-b border-border pb-3.5">
+        <span class={EYEBROW}>행사 정보</span>
+        <span class="text-base font-semibold tracking-tight">호로요이 페스타 2026</span>
       </div>
-      <div class="event-cell">
-        <div class="cell-key">일시</div>10월 2일(금) · 접수 18:00 · 건배 19:00
-      </div>
-      <div class="event-cell">
-        <div class="cell-key">장소</div>마쓰야마시 호리노우치 조자야마 공원 관리광장
-      </div>
-      <div class="event-cell">
-        <div class="cell-key">회비</div>사전 5,500엔 / 현장 6,500엔 · 20~30세 3,500엔 / 4,500엔 (식사권 1,000엔 포함)
-      </div>
-      <div class="event-cell muted">
-        <div class="cell-key">주의</div>정원제 · 우천 취소. 취소 여부는 9/30 12시 에히메현 사케조합 홈페이지 공지.
-        20~30세 할인은 신분증 필요.
-      </div>
+
+      <dl class="mt-4 grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+        <div>
+          <dt class={SPEC_KEY}>일시</dt>
+          <dd class="mt-1">10월 2일(금) · 접수 18:00 · 건배 19:00</dd>
+        </div>
+        <div>
+          <dt class={SPEC_KEY}>장소</dt>
+          <dd class="mt-1">마쓰야마시 호리노우치 조자야마 공원 관리광장</dd>
+        </div>
+        <div>
+          <dt class={SPEC_KEY}>회비</dt>
+          <dd class="mt-1">사전 5,500엔 / 현장 6,500엔 · 20~30세 3,500엔 / 4,500엔 (식사권 1,000엔 포함)</dd>
+        </div>
+        <div>
+          <dt class={SPEC_KEY}>주의</dt>
+          <dd class="mt-1 text-muted-foreground">
+            정원제 · 우천 취소. 취소 여부는 9/30 12시 에히메현 사케조합 홈페이지 공지. 20~30세 할인은 신분증 필요.
+          </dd>
+        </div>
+      </dl>
     </section>
 
-    <main class="main">
-      <aside class="side">
-        <div class="side-head">
-          <h2 class="side-title">참가 브랜드</h2>
-          <span class="mono count"><span id="count">{BREWERIES.length}</span> / {BREWERIES.length}</span>
+    <main class="flex min-h-0 flex-1 flex-wrap items-stretch">
+      <aside class="flex max-h-[min(72vh,520px)] min-w-70 flex-[0_1_20rem] flex-col border-b border-border md:border-r md:border-b-0">
+        <div class="flex items-baseline justify-between border-b border-border px-4 py-3">
+          <h2 class="text-sm font-semibold tracking-tight">참가 브랜드</h2>
+          <span class="font-mono text-xs tabular-nums text-muted-foreground">
+            <span id="count">{BREWERIES.length}</span> / {BREWERIES.length}
+          </span>
         </div>
-        <div class="list" id="list">
+
+        <div id="list" class="overflow-y-auto p-2">
           {
             BREWERIES.map((b) => (
-              <button type="button" class="row" data-id={b.id} data-region={b.region}>
-                <span class="dot" data-match={b.match}>
+              <button
+                type="button"
+                data-id={b.id}
+                data-region={b.region}
+                class="group flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-[current=true]:bg-accent"
+              >
+                <span
+                  class={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums text-background transition-colors group-aria-[current=true]:bg-foreground ${DOT_BG[b.match]}`}
+                >
                   {b.id}
                 </span>
-                <span class="row-body">
-                  <span class="row-title">
-                    <span class="ko">{b.ko}</span>
-                    <span class="ja">{b.ja}</span>
+                <span class="min-w-0">
+                  <span class="flex flex-wrap items-baseline gap-x-2">
+                    <span class="text-sm font-medium tracking-tight">{b.ko}</span>
+                    <span class="text-xs text-muted-foreground" lang="ja">
+                      {b.ja}
+                    </span>
                   </span>
-                  <span class="row-sub">
+                  <span class="mt-0.5 block truncate text-xs text-muted-foreground">
                     {b.brewery} · {b.city}
                   </span>
                 </span>
@@ -86,114 +128,147 @@ import { BREWERIES, MATCH_LABEL, REGION_FILTERS, REGION_LABEL_KO, tasteBars } fr
         </div>
       </aside>
 
-      <div class="mapwrap">
-        <div id="map"></div>
-        <div class="legend">
-          <div><span class="swatch" data-match="1"></span>취향 최우선</div>
-          <div><span class="swatch" data-match="2"></span>다음 우선순위</div>
-          <div><span class="swatch" data-match="3"></span>후순위 · 소주</div>
+      <div class="relative m-3 min-h-115 min-w-75 flex-[1_1_28rem] overflow-hidden rounded-xl border border-border">
+        <div id="map" class="absolute inset-0"></div>
+
+        <div
+          class="absolute bottom-3 left-3 z-500 flex flex-col gap-1.5 rounded-lg border border-border bg-card/90 px-3 py-2.5 text-xs text-muted-foreground backdrop-blur-sm"
+        >
+          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-1"></span>취향 최우선</div>
+          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-2"></span>다음 우선순위</div>
+          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-3"></span>후순위 · 소주</div>
         </div>
       </div>
     </main>
 
-    <section class="detail-wrap">
+    <section id="details" class="border-t border-border">
       {
         BREWERIES.map((b) => (
-          <article class="detail" data-id={b.id} hidden>
-            <div class="detail-col">
-              <div class="detail-head">
-                <span class="dot dot-lg" data-match={b.match}>
+          <article class="flex max-w-[1500px] flex-wrap items-start gap-x-12 gap-y-6 px-6 py-7" data-id={b.id} hidden>
+            <div class="flex-1 basis-85 space-y-0">
+              <div class="flex items-center gap-2.5">
+                <span
+                  class={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums text-background ${DOT_BG[b.match]}`}
+                >
                   {b.id}
                 </span>
-                <span class="tag accent">{MATCH_LABEL[b.match]}</span>
+                <span class={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${BADGE[b.match]}`}>
+                  {MATCH_LABEL[b.match]}
+                </span>
               </div>
-              <h2 class="detail-ko">{b.ko}</h2>
-              <div class="detail-ja">{b.ja}</div>
-              <p class="detail-style">{b.style}</p>
 
-              <div class="taste">
-                <div class="tag">맛 프로필</div>
+              <h2 class="mt-3 text-2xl font-semibold tracking-tight">{b.ko}</h2>
+              <div class="mt-0.5 text-sm text-muted-foreground" lang="ja">
+                {b.ja}
+              </div>
+              <p class="mt-3.5 text-sm leading-relaxed text-pretty text-muted-foreground">{b.style}</p>
+
+              <div class="mt-5 space-y-2.5 border-t border-border pt-4">
+                <div class={EYEBROW}>맛 프로필</div>
                 {tasteBars(b).map((bar) => (
-                  <div class="bar">
-                    <span class="bar-label">{bar.label}</span>
-                    <span class="bar-track">
-                      <span class="bar-fill" data-match={b.match} style={`width:${bar.value * 20}%`} />
+                  <div class="grid grid-cols-[3.5rem_1fr_2rem] items-center gap-2.5">
+                    <span class="text-xs text-muted-foreground">{bar.label}</span>
+                    <span class="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <span class={`block h-full rounded-full ${BAR_BG[b.match]}`} style={`width:${bar.value * 20}%`} />
                     </span>
-                    <span class="mono bar-val">{bar.value}/5</span>
+                    <span class="text-right font-mono text-[10.5px] tabular-nums text-muted-foreground">
+                      {bar.value}/5
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div class="detail-col">
-              <dl class="spec">
-                <dt>양조장</dt>
+            <div class="flex-1 basis-85">
+              <dl class="grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-2.5 text-sm">
+                <dt class={SPEC_KEY}>양조장</dt>
                 <dd>{b.brewery}</dd>
-                <dt>창업</dt>
+                <dt class={SPEC_KEY}>창업</dt>
                 <dd>{b.founded}</dd>
-                <dt>주소</dt>
-                <dd class="mono">{b.addr}</dd>
-                <dt>지역</dt>
+                <dt class={SPEC_KEY}>주소</dt>
+                <dd class="font-mono text-xs leading-relaxed" lang="ja">
+                  {b.addr}
+                </dd>
+                <dt class={SPEC_KEY}>지역</dt>
                 <dd>{REGION_LABEL_KO[b.region]}</dd>
-                <dt>물·쌀</dt>
+                <dt class={SPEC_KEY}>물·쌀</dt>
                 <dd>{b.water}</dd>
-                <dt>페어링</dt>
+                <dt class={SPEC_KEY}>페어링</dt>
                 <dd>{b.pair}</dd>
-                <dt>온도</dt>
+                <dt class={SPEC_KEY}>온도</dt>
                 <dd>{b.temp}</dd>
-                <dt>시음 순서</dt>
+                <dt class={SPEC_KEY}>시음 순서</dt>
                 <dd>{b.step}</dd>
               </dl>
 
-              <div class="pick">
-                <div class="tag accent">우선 시도</div>
-                <div class="pick-body">{b.pick}</div>
+              <div class="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3.5">
+                <div class={EYEBROW}>우선 시도</div>
+                <div class="mt-1.5 text-sm leading-relaxed">{b.pick}</div>
               </div>
 
-              <div class="phrase">
-                <div class="tag">부스에서 물어볼 말</div>
-                <div class="phrase-jp" lang="ja">
+              <div class="mt-3 rounded-lg border border-dashed border-border px-4 py-3.5">
+                <div class={EYEBROW}>부스에서 물어볼 말</div>
+                <div class="mt-1.5 text-sm leading-relaxed" lang="ja">
                   {b.jp}
                 </div>
-                <div class="phrase-ko">{b.jpKo}</div>
+                <div class="mt-1.5 text-xs leading-relaxed text-muted-foreground">{b.jpKo}</div>
               </div>
             </div>
           </article>
         ))
       }
 
-      <div class="empty" id="empty">
+      <div
+        id="empty"
+        class="grid max-w-[1500px] grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] items-start gap-x-11 gap-y-6 px-6 py-8 text-sm leading-relaxed text-muted-foreground"
+      >
         <div>
-          <div class="empty-title">양조장을 골라 보세요</div>
+          <div class="mb-2 text-base font-semibold tracking-tight text-foreground">양조장을 골라 보세요</div>
           지도의 번호를 올리거나 탭하면 여기에 브랜드 스타일, 맛 프로필, 주소, 우선 시도할 술, 부스에서 쓸 일본어 문장이
           표시됩니다.
         </div>
 
-        <div class="empty-phrase">
-          <div class="empty-key">부스에서 쓸 공통 한 문장</div>
-          <div class="phrase-jp" lang="ja">
+        <div>
+          <div class="mb-1.5 font-medium text-foreground">부스에서 쓸 공통 한 문장</div>
+          <div class="text-sm leading-relaxed text-foreground" lang="ja">
             芳醇甘口で、酸味があって、できれば生酒か無濾過生原酒が好きです。吟醸系でおすすめはありますか？
           </div>
-          <div class="phrase-ko">
+          <div class="mt-1.5 text-xs leading-relaxed">
             “호우쥰아마구치에 산미가 있고, 가능하면 생주나 무여과 생원주를 좋아합니다. 긴죠 계열 추천이 있나요?”
           </div>
         </div>
 
-        <div class="empty-flow">
-          <div class="empty-key">취향 기준 시음 흐름</div>
-          <ol class="flow">
-            <li><span class="mono" data-match="1">①</span><span>스타트 — 스키고코로 니코마루 생주, 카신</span></li>
-            <li><span class="mono" data-match="1">②</span><span>하나히메자쿠라 아라바시리 생원주</span></li>
-            <li><span class="mono" data-match="1">③</span><span>이요카기야 무여과 생원주</span></li>
-            <li><span class="mono" data-match="1">④</span><span>야마토고코로 찹쌀 4단 생원주</span></li>
-            <li><span class="mono" data-match="2">⑤</span><span>유키스즈메·니키타츠·쿄히나 사쿠라히메 효모 비교</span></li>
-            <li><span class="mono" data-match="2">⑥</span><span>이시즈치·치요노카메 고급 긴죠로 균형 확인</span></li>
-            <li><span class="mono" data-match="3">⑦</span><span>음식과 함께 야마탄마사무네·카제노사토 식중주</span></li>
-            <li><span class="mono" data-match="3">⑧</span><span>마무리 — 히메바야시 밤 소주</span></li>
+        <div class="border-t border-border pt-4">
+          <div class="mb-2.5 font-medium text-foreground">취향 기준 시음 흐름</div>
+          <ol class="flex flex-col gap-2 text-xs">
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-1">①</span><span>스타트 — 스키고코로 니코마루 생주, 카신</span>
+            </li>
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-1">②</span><span>하나히메자쿠라 아라바시리 생원주</span>
+            </li>
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-1">③</span><span>이요카기야 무여과 생원주</span>
+            </li>
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-1">④</span><span>야마토고코로 찹쌀 4단 생원주</span>
+            </li>
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-2">⑤</span><span>유키스즈메·니키타츠·쿄히나 사쿠라히메 효모 비교</span>
+            </li>
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-2">⑥</span><span>이시즈치·치요노카메 고급 긴죠로 균형 확인</span>
+            </li>
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-3">⑦</span><span>음식과 함께 야마탄마사무네·카제노사토 식중주</span>
+            </li>
+            <li class="grid grid-cols-[1.125rem_1fr] gap-2">
+              <span class="font-mono text-match-3">⑧</span><span>마무리 — 히메바야시 밤 소주</span>
+            </li>
           </ol>
         </div>
 
-        <div class="empty-note">
+        <div class="border-t border-border pt-4 text-xs leading-relaxed">
           에히메는 400년 이상의 사케 산지로, 현재 약 35~37곳의 양조장이 있습니다. 이시즈치산 등 시코쿠 산맥의 연수~중경수를
           써서 온화하고 섬세한 ‘이요(伊予)의 여성적인 술’로 불려 왔고, 세토내해·우와카이의 흰살생선과 특히 잘 맞습니다.
         </div>
@@ -203,619 +278,5 @@ import { BREWERIES, MATCH_LABEL, REGION_FILTERS, REGION_LABEL_KO, tasteBars } fr
     <script>
       import '../scripts/map.ts';
     </script>
-
-    <style is:global>
-      :root {
-        --bg: #f7f4ee;
-        --panel: #fbf9f4;
-        --line: #ddd6c9;
-        --line-soft: #e7e0d3;
-        --ink: #1c1a17;
-        --ink-2: #2b2620;
-        --ink-3: #3c372f;
-        --mute: #5d564c;
-        --mute-2: #7d7568;
-        --mute-3: #918879;
-        --accent: #a2724a;
-        --m1: #c8621f;
-        --m2: #3f5570;
-        --m3: #a9a094;
-        --serif: 'Noto Serif KR', serif;
-        --sans: 'Noto Sans KR', sans-serif;
-        --mono: 'IBM Plex Mono', monospace;
-      }
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-
-      [hidden] {
-        display: none !important;
-      }
-
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        background: var(--bg);
-        color: var(--ink);
-        font-family: var(--sans);
-        -webkit-font-smoothing: antialiased;
-      }
-
-      h1,
-      h2 {
-        margin: 0;
-        font-family: var(--serif);
-        letter-spacing: -0.02em;
-      }
-
-      .mono {
-        font-family: var(--mono);
-      }
-
-      .tag {
-        font-family: var(--mono);
-        font-size: 10px;
-        letter-spacing: 0.14em;
-        color: var(--mute-3);
-        margin: 0;
-      }
-
-      .tag.accent {
-        color: var(--accent);
-      }
-
-      /* ---------- header ---------- */
-
-      .head {
-        padding: 22px 28px 18px;
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        gap: 18px 32px;
-      }
-
-      .head-main {
-        flex: 1 1 320px;
-      }
-
-      .head .tag {
-        font-size: 11px;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-      }
-
-      .head h1 {
-        margin-top: 8px;
-        font-size: 32px;
-        font-weight: 700;
-        line-height: 1.15;
-      }
-
-      .lede {
-        margin: 8px 0 0;
-        font-size: 13.5px;
-        line-height: 1.6;
-        color: var(--mute);
-        max-width: 52ch;
-        text-wrap: pretty;
-      }
-
-      .filter {
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-      }
-
-      #region {
-        font: 500 12.5px/1 var(--sans);
-        padding: 10px 32px 10px 13px;
-        border-radius: 9px;
-        border: 1px solid #cfc6b6;
-        background: var(--panel);
-        color: var(--ink-3);
-        cursor: pointer;
-        appearance: none;
-        min-width: 216px;
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%23918879'/></svg>");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-      }
-
-      /* ---------- event panel ---------- */
-
-      .event {
-        margin: 14px 12px 0;
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 16px 20px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px 32px;
-        align-items: flex-start;
-      }
-
-      .event-head {
-        flex: 1 1 100%;
-        display: flex;
-        align-items: baseline;
-        gap: 12px;
-        flex-wrap: wrap;
-        padding-bottom: 14px;
-        border-bottom: 1px solid #ebe4d7;
-      }
-
-      .event-title {
-        font-family: var(--serif);
-        font-size: 16px;
-        font-weight: 600;
-      }
-
-      .event-cell {
-        flex: 1 1 40%;
-        min-width: 250px;
-        font-size: 12.5px;
-        line-height: 1.6;
-        color: var(--ink-3);
-      }
-
-      .event-cell.muted {
-        font-size: 12px;
-        line-height: 1.65;
-        color: var(--mute-2);
-      }
-
-      .cell-key {
-        color: var(--mute-3);
-        font-size: 11px;
-        margin-bottom: 4px;
-      }
-
-      /* ---------- main: list + map ---------- */
-
-      .main {
-        flex: 1;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: stretch;
-        min-height: 0;
-      }
-
-      .side {
-        flex: 0 1 320px;
-        min-width: 280px;
-        border-right: 1px solid var(--line);
-        display: flex;
-        flex-direction: column;
-        max-height: min(72vh, 520px);
-      }
-
-      .side-head {
-        padding: 12px 16px 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        border-bottom: 1px solid var(--line-soft);
-      }
-
-      .side-title {
-        font-size: 14px;
-        font-weight: 600;
-      }
-
-      .count {
-        font-size: 11px;
-        color: var(--mute-3);
-      }
-
-      .list {
-        overflow-y: auto;
-        padding: 6px 8px 18px;
-      }
-
-      .row {
-        width: 100%;
-        display: grid;
-        grid-template-columns: 26px 1fr;
-        gap: 11px;
-        align-items: center;
-        padding: 9px 10px;
-        border: 0;
-        border-radius: 10px;
-        background: transparent;
-        color: inherit;
-        font: inherit;
-        text-align: left;
-        cursor: pointer;
-        transition: background 0.13s;
-      }
-
-      .row:hover,
-      .row.is-active {
-        background: #ece5d8;
-      }
-
-      .row:focus-visible {
-        outline: 2px solid var(--ink);
-        outline-offset: -2px;
-      }
-
-      .dot {
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font: 600 11.5px/1 var(--mono);
-        color: #fff;
-      }
-
-      .dot[data-match='1'],
-      .swatch[data-match='1'],
-      .bar-fill[data-match='1'] {
-        background: var(--m1);
-      }
-
-      .dot[data-match='2'],
-      .swatch[data-match='2'],
-      .bar-fill[data-match='2'] {
-        background: var(--m2);
-      }
-
-      .dot[data-match='3'],
-      .swatch[data-match='3'],
-      .bar-fill[data-match='3'] {
-        background: var(--m3);
-      }
-
-      .row.is-active .dot {
-        background: var(--ink);
-      }
-
-      .row-body {
-        min-width: 0;
-      }
-
-      .row-title {
-        display: flex;
-        align-items: baseline;
-        gap: 7px;
-        flex-wrap: wrap;
-      }
-
-      .row-title .ko {
-        font-family: var(--serif);
-        font-size: 15px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-      }
-
-      .row-title .ja {
-        font-size: 12px;
-        color: #8d8577;
-      }
-
-      .row-sub {
-        display: block;
-        font-size: 11.5px;
-        color: var(--mute-2);
-        margin-top: 2px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .mapwrap {
-        flex: 1 1 460px;
-        min-width: 300px;
-        position: relative;
-        min-height: 460px;
-        overflow: hidden;
-        border-radius: 14px;
-        margin: 12px;
-      }
-
-      #map {
-        position: absolute;
-        inset: 0;
-      }
-
-      .legend {
-        position: absolute;
-        left: 12px;
-        bottom: 12px;
-        z-index: 500;
-        background: rgba(247, 244, 238, 0.94);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 10px 13px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        font-size: 11px;
-        color: var(--mute);
-      }
-
-      .legend > div {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-      }
-
-      .swatch {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: inline-block;
-      }
-
-      /* leaflet 마커/툴팁은 컴포넌트 밖에서 생성된다 */
-      .leaflet-container {
-        font-family: var(--sans);
-        background: #eae5dc;
-      }
-
-      .leaflet-tooltip {
-        font-family: var(--sans);
-        font-size: 12px;
-        font-weight: 500;
-        border: none;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
-      }
-
-      /* ---------- detail ---------- */
-
-      .detail-wrap {
-        border-top: 1px solid var(--line);
-        background: var(--panel);
-      }
-
-      .detail {
-        padding: 26px 28px 36px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 26px 48px;
-        align-items: flex-start;
-        max-width: 1500px;
-      }
-
-      .detail-col {
-        flex: 1 1 340px;
-        min-width: 280px;
-      }
-
-      .detail-head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .dot-lg {
-        width: 30px;
-        height: 30px;
-        font-size: 13px;
-      }
-
-      .detail-ko {
-        margin: 12px 0 2px;
-        font-size: 26px;
-        font-weight: 700;
-      }
-
-      .detail-ja {
-        font-size: 14px;
-        color: #8d8577;
-        font-family: var(--serif);
-      }
-
-      .detail-style {
-        margin: 14px 0 0;
-        font-size: 13.5px;
-        line-height: 1.72;
-        color: var(--ink-3);
-        text-wrap: pretty;
-      }
-
-      .taste {
-        margin-top: 20px;
-        border-top: 1px solid var(--line-soft);
-        padding-top: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 9px;
-      }
-
-      .bar {
-        display: grid;
-        grid-template-columns: 56px 1fr 30px;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .bar-label {
-        font-size: 11.5px;
-        color: var(--mute);
-      }
-
-      .bar-track {
-        height: 5px;
-        background: #e4dccd;
-        border-radius: 3px;
-        position: relative;
-        display: block;
-      }
-
-      .bar-fill {
-        position: absolute;
-        inset: 0 auto 0 0;
-        border-radius: 3px;
-      }
-
-      .bar-val {
-        font-size: 10.5px;
-        color: var(--mute-3);
-        text-align: right;
-      }
-
-      .spec {
-        margin: 0;
-        display: grid;
-        grid-template-columns: 66px 1fr;
-        gap: 11px 10px;
-        font-size: 12.5px;
-        line-height: 1.6;
-      }
-
-      .spec dt {
-        color: var(--mute-3);
-      }
-
-      .spec dd {
-        margin: 0;
-        color: var(--ink-2);
-      }
-
-      .spec dd.mono {
-        font-size: 11.5px;
-        line-height: 1.65;
-      }
-
-      .pick {
-        margin-top: 18px;
-        background: #f1ece1;
-        border-radius: 12px;
-        padding: 14px 16px;
-      }
-
-      .pick-body {
-        margin-top: 6px;
-        font-size: 13.5px;
-        line-height: 1.65;
-        color: var(--ink-2);
-      }
-
-      .phrase {
-        margin-top: 14px;
-        padding: 14px 16px;
-        border: 1px dashed #cfc6b6;
-        border-radius: 12px;
-      }
-
-      .phrase-jp {
-        margin-top: 6px;
-        font-size: 13.5px;
-        line-height: 1.7;
-        color: var(--ink-2);
-        font-family: var(--serif);
-      }
-
-      .phrase-ko {
-        font-size: 12px;
-        line-height: 1.6;
-        color: var(--mute-2);
-        margin-top: 5px;
-      }
-
-      /* ---------- empty state ---------- */
-
-      .empty {
-        padding: 30px 28px 36px;
-        font-size: 13.5px;
-        line-height: 1.75;
-        color: var(--mute-2);
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-        gap: 26px 44px;
-        align-items: start;
-        max-width: 1500px;
-      }
-
-      .empty-title {
-        font-family: var(--serif);
-        font-size: 17px;
-        color: var(--ink-3);
-        margin-bottom: 10px;
-      }
-
-      .empty-phrase {
-        font-size: 12.5px;
-        line-height: 1.8;
-      }
-
-      .empty-key {
-        color: var(--ink-3);
-        font-weight: 500;
-        font-size: 12.5px;
-        margin-bottom: 6px;
-      }
-
-      .empty-flow,
-      .empty-note {
-        margin-top: 22px;
-        padding-top: 18px;
-        border-top: 1px solid var(--line-soft);
-      }
-
-      .empty-note {
-        font-size: 12px;
-        line-height: 1.7;
-        color: var(--mute-2);
-      }
-
-      .flow {
-        list-style: none;
-        margin: 10px 0 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        font-size: 12px;
-        line-height: 1.55;
-      }
-
-      .flow li {
-        display: grid;
-        grid-template-columns: 18px 1fr;
-        gap: 9px;
-      }
-
-      .flow [data-match='1'] {
-        color: var(--m1);
-      }
-
-      .flow [data-match='2'] {
-        color: var(--m2);
-      }
-
-      .flow [data-match='3'] {
-        color: var(--m3);
-      }
-
-      @media (max-width: 640px) {
-        .head,
-        .detail,
-        .empty {
-          padding-left: 18px;
-          padding-right: 18px;
-        }
-
-        .side {
-          border-right: 0;
-          border-bottom: 1px solid var(--line);
-        }
-      }
-    </style>
   </body>
 </html>
