@@ -88,8 +88,10 @@ const SPEC_KEY = 'text-muted-foreground';
       </dl>
     </section>
 
-    <main class="flex min-h-0 flex-1 flex-wrap items-stretch">
-      <aside class="flex max-h-[min(72vh,520px)] min-w-70 flex-[0_1_20rem] flex-col border-b border-border md:border-r md:border-b-0">
+    <main class="flex min-h-0 flex-1 flex-col split:flex-row split:items-stretch">
+      <aside
+        class="flex max-h-[min(52vh,420px)] w-full flex-col border-b border-border split:max-h-[min(72vh,520px)] split:w-80 split:flex-none split:border-r split:border-b-0"
+      >
         <div class="flex items-baseline justify-between border-b border-border px-4 py-3">
           <h2 class="text-sm font-semibold tracking-tight">참가 브랜드</h2>
           <span class="font-mono text-xs tabular-nums text-muted-foreground">
@@ -128,7 +130,7 @@ const SPEC_KEY = 'text-muted-foreground';
         </div>
       </aside>
 
-      <div class="relative m-3 min-h-115 min-w-75 flex-[1_1_28rem] overflow-hidden rounded-xl border border-border">
+      <div class="relative m-3 min-h-115 overflow-hidden rounded-xl border border-border split:min-w-75 split:flex-1">
         <div id="map" class="absolute inset-0"></div>
 
         <div
@@ -144,7 +146,24 @@ const SPEC_KEY = 'text-muted-foreground';
     <section id="details" class="border-t border-border">
       {
         BREWERIES.map((b) => (
-          <article class="flex max-w-[1500px] flex-wrap items-start gap-x-12 gap-y-6 px-6 py-7" data-id={b.id} hidden>
+          <article
+            class="relative flex max-w-[1500px] flex-wrap items-start gap-x-12 gap-y-6 px-6 py-7"
+            data-id={b.id}
+            hidden
+          >
+            <button
+              type="button"
+              data-clear
+              title="선택 해제 (Esc)"
+              aria-label="선택 해제"
+              class="absolute top-6 right-6 z-10 inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <svg viewBox="0 0 24 24" class="size-3.5" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" stroke-linecap="round" />
+              </svg>
+              <span class="hidden sm:inline">선택 해제</span>
+            </button>
+
             <div class="flex-1 basis-85 space-y-0">
               <div class="flex items-center gap-2.5">
                 <span

@@ -31,6 +31,9 @@
   --color-match-2: oklch(0.7 0.13 235);
   --color-match-3: oklch(0.72 0.03 90);
 
+  /* 768px 이하에서는 목록과 지도를 각각 한 줄씩 쌓는다 (아이패드 세로 768 포함). */
+  --breakpoint-split: 769px;
+
   --radius-sm: calc(0.625rem - 4px);
   --radius-md: calc(0.625rem - 2px);
   --radius-lg: 0.625rem;

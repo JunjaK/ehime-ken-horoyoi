@@ -161,13 +161,31 @@ function render() {
   }
 }
 
+/** 같은 항목을 다시 누르면 선택이 풀린다 (호버가 없는 터치에서 유일한 취소 수단). */
 function pin(id: number) {
-  pinId = id;
+  const alreadyPinned = pinId === id;
+  pinId = alreadyPinned ? null : id;
+  // 터치에서 한 번 발생하고 끝나는 mouseover 가 남아 있으면 취소가 먹지 않는다.
   hoverId = null;
+
   const b = byId.get(id);
-  if (b) map.flyTo([b.lat, b.lng], Math.max(map.getZoom(), 10), { duration: 0.6 });
+  if (!alreadyPinned && b) map.flyTo([b.lat, b.lng], Math.max(map.getZoom(), 10), { duration: 0.6 });
   render();
 }
+
+function clearSelection() {
+  pinId = null;
+  hoverId = null;
+  render();
+}
+
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-clear]')) {
+  button.addEventListener('click', clearSelection);
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') clearSelection();
+});
 
 for (const row of rowEls) {
   const id = Number(row.dataset.id);
