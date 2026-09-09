@@ -4,6 +4,11 @@
  */
 import assert from 'node:assert/strict';
 import { ALL_REGIONS, BREWERIES, REGION_FILTERS, tasteBars } from './data/breweries.ts';
+import { BRANDS, PRODUCERS } from './data/catalog.ts';
+import { PRODUCTS } from './data/products.ts';
+import { PERSONAL_GUIDES } from './data/guides.ts';
+import { matchesQuery, searchText } from './lib/search.ts';
+import type { SourceRef } from './data/types.ts';
 import { spreadPoints } from './lib/spread.ts';
 
 // --- 데이터 ---
@@ -63,3 +68,58 @@ assert.equal(
 }
 
 console.log('check ok — 브랜드 %d곳, 마커 밀어내기 정상', BREWERIES.length);
+
+// 회사·브랜드·제품의 독립 식별자와 관계를 검사한다.
+for (const [label, records] of [['양조장', PRODUCERS], ['브랜드', BRANDS], ['제품', PRODUCTS]] as const) {
+  assert.equal(new Set(records.map((record) => record.id)).size, records.length, `${label} id 중복`);
+}
+const expectedBrands = ['梅錦', '華姫桜', '石鎚', '寿喜心', '日本心', '伊予賀儀屋', '山丹正宗', '雪雀', '桜うづまき', '仁喜多津', '酒仙栄光', '京ひな', '千代の亀', '風の里', '花神', '城川郷', '媛囃子', '名門', '野武士'];
+assert.deepEqual(BRANDS.filter((brand) => brand.festival2026).map((brand) => brand.nameJa), expectedBrands);
+assert.equal(PERSONAL_GUIDES.length, 19);
+assert.equal(new Set(PERSONAL_GUIDES.map((guide) => guide.brandId)).size, 19);
+const producerIds = new Set(PRODUCERS.map((producer) => producer.id));
+const brandIds = new Set(BRANDS.map((brand) => brand.id));
+function validateSources(sources: SourceRef[]) {
+  assert.ok(sources.length > 0, '출처 누락');
+  for (const source of sources) {
+    const url = new URL(source.url);
+    assert.ok(url.protocol === 'https:' || url.protocol === 'http:', '웹 출처 URL 필요');
+    assert.ok(source.title.trim(), '출처 제목 누락');
+    assert.match(source.accessedAt, /^\d{4}-\d{2}-\d{2}$/);
+  }
+}
+for (const producer of PRODUCERS) {
+  assert.ok(producer.lat > 32.9 && producer.lat < 34.3 && producer.lng > 132.2 && producer.lng < 133.8);
+  assert.equal(producer.location.precision, 'locality');
+  validateSources([...producer.sources, producer.location.source]);
+}
+for (const brand of BRANDS) {
+  assert.ok(producerIds.has(brand.breweryId), `${brand.id}: 양조장 연결 누락`);
+  validateSources(brand.sources);
+  if (brand.festival2026) assert.ok(PERSONAL_GUIDES.some((guide) => guide.brandId === brand.id));
+}
+for (const product of PRODUCTS) {
+  assert.ok(brandIds.has(product.brandId), `${product.id}: 브랜드 연결 누락`);
+  validateSources(product.sources);
+  assert.equal(product.festivalOffering, 'unknown', '2026 제품 출품 근거가 아직 없는 데이터셋');
+  assert.match(product.specAsOf, /^\d{4}-\d{2}-\d{2}$/);
+  if (product.kind === 'sake') {
+    if (typeof product.polishingRatio === 'number') assert.ok(product.polishingRatio > 0 && product.polishingRatio <= 100);
+    for (const value of [product.alcohol, product.acidity, product.aminoAcidity]) {
+      if (typeof value === 'number') assert.ok(Number.isFinite(value) && value >= 0);
+    }
+  } else {
+    assert.ok(product.ingredients.length > 0);
+    assert.ok(!('polishingRatio' in product), '소주에 청주 사양을 섞지 않는다');
+  }
+}
+// 검색은 독립 문자열 모델에서 한/일/가나/회사/도시/제품과 결합 검색을 검사한다.
+const yoro = BREWERIES.find((guide) => guide.ja === '風の里');
+assert.ok(yoro);
+for (const query of ['風の里', 'かぜのさと', 'カゼノサト', '카제노사토', '養老酒造', '요로', '오즈', 'Sakura', '叶川', '風の里 Sakura']) {
+  assert.ok(matchesQuery(searchText(yoro), query), `검색 누락: ${query}`);
+}
+assert.ok(!matchesQuery(searchText(yoro), '존재하지않는술'));
+assert.ok(matchesQuery(searchText(yoro), ''));
+assert.equal(PRODUCTS.find((product) => product.id === 'kanogawa-junmai')?.alcohol, null, '불일치 도수 추정 금지');
+console.log('catalog ok — 양조장 %d, 참가 브랜드 19, 제품 %d, 출처·연결·검색 정상', PRODUCERS.length, PRODUCTS.length);

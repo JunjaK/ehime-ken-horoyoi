@@ -1,6 +1,8 @@
 ---
 import { BREWERIES, MATCH_LABEL, REGION_FILTERS, REGION_LABEL_KO, tasteBars } from '../data/breweries.ts';
 import '../styles/global.css';
+import Sources from '../components/Sources.astro';
+import ProductCard from '../components/ProductCard.astro';
 
 // 클래스명을 문자열 그대로 적어야 Tailwind 스캐너가 잡는다. 문자열 조합 금지.
 const DOT_BG: Record<number, string> = { 1: 'bg-match-1', 2: 'bg-match-2', 3: 'bg-match-3' };
@@ -53,6 +55,7 @@ const SPEC_KEY = 'text-muted-foreground';
         <label for="region" class="text-xs font-medium text-muted-foreground">지역</label>
         <select
           id="region"
+          data-testid="guide-region-select"
           class="h-9 min-w-54 appearance-none rounded-md border border-input bg-transparent bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22><path d=%22M0 0l5 6 5-6z%22 fill=%22%23a1a1a1%22/></svg>')] bg-[length:10px_6px] bg-[position:right_0.75rem_center] bg-no-repeat py-1 pr-8 pl-3 text-sm shadow-xs transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {REGION_FILTERS.map((option) => <option value={option.value}>{option.label}</option>)}
@@ -86,6 +89,7 @@ const SPEC_KEY = 'text-muted-foreground';
           </dd>
         </div>
       </dl>
+      <p class="mt-4 text-xs text-muted-foreground">제품별 행사 제공은 미확인입니다. <a data-testid="guide-event-source-open" href="https://www.ishizuchi.co.jp/?p=1669" target="_blank" rel="noreferrer" class="underline underline-offset-4">2026 공식 행사 안내</a></p>
     </section>
 
     <main class="flex min-h-0 flex-1 flex-col split:flex-row split:items-stretch">
@@ -99,14 +103,25 @@ const SPEC_KEY = 'text-muted-foreground';
           </span>
         </div>
 
+        <form id="search-form" class="border-b border-border p-3" role="search" data-testid="guide-search-form">
+          <label for="search" class="text-xs font-medium text-muted-foreground">브랜드 · 양조장 · 제품 검색</label>
+          <input id="search" data-testid="guide-search-input" type="search" placeholder="風の里, 오즈, Sakura" class="mt-2 h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-2" />
+          <div class="mt-2 flex justify-end gap-2">
+            <button type="reset" data-testid="guide-search-reset" class="rounded-md border border-border px-3 py-2 text-xs">초기화</button>
+            <button type="submit" data-testid="guide-search-apply" class="rounded-md border border-foreground bg-foreground px-3 py-2 text-xs font-medium text-background">검색</button>
+          </div>
+          <p id="search-status" class="mt-2 text-xs text-muted-foreground" aria-live="polite">입력 후 Enter 또는 검색을 누르세요.</p>
+        </form>
+        <p id="no-results" hidden role="status" class="p-4 text-sm text-muted-foreground">검색 결과가 없습니다. 검색어나 지역을 바꿔 보세요.</p>
         <div id="list" class="overflow-y-auto p-2">
           {
             BREWERIES.map((b) => (
               <button
                 type="button"
+                data-testid={`guide-brand-select-${b.id}`}
                 data-id={b.id}
                 data-region={b.region}
-                class="group flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-[current=true]:bg-accent"
+                class="group mb-1 flex w-full items-center gap-3 rounded-md border border-border px-2.5 py-2 text-left transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-[current=true]:bg-accent"
               >
                 <span
                   class={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums text-background transition-colors group-aria-[current=true]:bg-foreground ${DOT_BG[b.match]}`}
@@ -131,11 +146,13 @@ const SPEC_KEY = 'text-muted-foreground';
       </aside>
 
       <div class="relative m-3 min-h-115 overflow-hidden rounded-xl border border-border split:min-w-75 split:flex-1">
-        <div id="map" class="absolute inset-0"></div>
+        <div id="map" class="absolute inset-0" aria-label="참가 브랜드 양조장 대략 위치"></div>
+        <p id="map-status" role="status" class="absolute top-3 right-3 z-500 max-w-64 rounded-md border border-border bg-card px-3 py-2 text-xs">지도를 불러오는 중…</p>
 
         <div
           class="absolute bottom-3 left-3 z-500 flex flex-col gap-1.5 rounded-lg border border-border bg-card/90 px-3 py-2.5 text-xs text-muted-foreground backdrop-blur-sm"
         >
+          <p class="max-w-52 text-[10px]">지역 대표점 · 건물 위치 아님<br />겹친 번호는 가독성을 위해 이동</p>
           <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-1"></span>취향 최우선</div>
           <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-2"></span>다음 우선순위</div>
           <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-3"></span>후순위 · 소주</div>
@@ -154,6 +171,7 @@ const SPEC_KEY = 'text-muted-foreground';
             <button
               type="button"
               data-clear
+              data-testid={`guide-selection-clear-${b.id}`}
               title="선택 해제 (Esc)"
               aria-label="선택 해제"
               class="absolute top-6 right-6 z-10 inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -178,12 +196,14 @@ const SPEC_KEY = 'text-muted-foreground';
 
               <h2 class="mt-3 text-2xl font-semibold tracking-tight">{b.ko}</h2>
               <div class="mt-0.5 text-sm text-muted-foreground" lang="ja">
-                {b.ja}
+                {b.ja} · {b.brand.nameKana}
               </div>
+              <p class="mt-4 text-xs font-medium text-match-2">개인 시음 가이드 · 공식 사양 아님</p>
+              <p class="mt-2 text-xs leading-relaxed text-muted-foreground">기존 취향 메모를 유지했습니다. 제품명·수상·제법에 관한 메모는 별도 검증되지 않았으므로 아래 출처 있는 제품 정보를 우선하세요.</p>
               <p class="mt-3.5 text-sm leading-relaxed text-pretty text-muted-foreground">{b.style}</p>
 
               <div class="mt-5 space-y-2.5 border-t border-border pt-4">
-                <div class={EYEBROW}>맛 프로필</div>
+                <div class={EYEBROW}>예상 맛 프로필 · 개인 평가</div>
                 {tasteBars(b).map((bar) => (
                   <div class="grid grid-cols-[3.5rem_1fr_2rem] items-center gap-2.5">
                     <span class="text-xs text-muted-foreground">{bar.label}</span>
@@ -201,7 +221,7 @@ const SPEC_KEY = 'text-muted-foreground';
             <div class="flex-1 basis-85">
               <dl class="grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-2.5 text-sm">
                 <dt class={SPEC_KEY}>양조장</dt>
-                <dd>{b.brewery}</dd>
+                <dd><span lang="ja">{b.brewery}</span><span class="mt-1 block text-xs text-muted-foreground">{b.producer.nameKo} · {b.producer.nameKana}</span></dd>
                 <dt class={SPEC_KEY}>창업</dt>
                 <dd>{b.founded}</dd>
                 <dt class={SPEC_KEY}>주소</dt>
@@ -210,9 +230,8 @@ const SPEC_KEY = 'text-muted-foreground';
                 </dd>
                 <dt class={SPEC_KEY}>지역</dt>
                 <dd>{REGION_LABEL_KO[b.region]}</dd>
-                <dt class={SPEC_KEY}>물·쌀</dt>
-                <dd>{b.water}</dd>
-                <dt class={SPEC_KEY}>페어링</dt>
+                {b.water && <><dt class={SPEC_KEY}>물·쌀</dt><dd>{b.water}</dd></>}
+                <dt class={SPEC_KEY}>추천 페어링</dt>
                 <dd>{b.pair}</dd>
                 <dt class={SPEC_KEY}>온도</dt>
                 <dd>{b.temp}</dd>
@@ -221,7 +240,7 @@ const SPEC_KEY = 'text-muted-foreground';
               </dl>
 
               <div class="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3.5">
-                <div class={EYEBROW}>우선 시도</div>
+                <div class={EYEBROW}>우선 시도 · 기존 개인 후보, 출품 미확인</div>
                 <div class="mt-1.5 text-sm leading-relaxed">{b.pick}</div>
               </div>
 
@@ -233,13 +252,31 @@ const SPEC_KEY = 'text-muted-foreground';
                 <div class="mt-1.5 text-xs leading-relaxed text-muted-foreground">{b.jpKo}</div>
               </div>
             </div>
+            <div class="w-full border-t border-border pt-5">
+              <h3 class="text-lg font-semibold">양조장 특징 · 출처 기반</h3>
+              <p class="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">{b.producer.descriptionKo}</p>
+              <p class="mt-2 text-xs text-muted-foreground">지도 위치: {b.producer.location.label} 지역 대표점. 방문 시 공식 주소를 확인하세요.</p>
+              {b.brand.lineupNote && <p class="mt-3 max-w-3xl text-sm leading-relaxed text-match-2">{b.brand.lineupNote}</p>}
+              <Sources sources={[...b.producer.sources, b.producer.location.source]} id={`producer-${b.id}`} />
+            </div>
+            <div class="w-full border-t border-border pt-5">
+              <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 class="text-lg font-semibold">대표 제품 · {b.products.length}종</h3>
+                <span class="text-xs text-muted-foreground">제품 자료 ≠ 2026 출품 목록</span>
+              </div>
+              <p class="mt-2 text-xs leading-relaxed text-muted-foreground">확인된 사양만 표시합니다. 정미율·도수 등은 로트에 따라 달라질 수 있으며, 속성 표시가 없다고 화입주라는 뜻은 아닙니다.</p>
+              <div class="mt-4 grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {b.products.map((product) => <ProductCard product={product} brandName={b.relatedBrands.find((brand) => brand.id === product.brandId)?.nameJa ?? ''} related={product.brandId !== b.brand.id} />)}
+              </div>
+              {b.products.length === 0 && <p class="mt-4 text-sm text-muted-foreground">출처가 확인된 제품을 아직 등록하지 못했습니다.</p>}
+            </div>
           </article>
         ))
       }
 
       <div
         id="empty"
-        class="grid max-w-[1500px] grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] items-start gap-x-11 gap-y-6 px-6 py-8 text-sm leading-relaxed text-muted-foreground"
+        class="grid max-w-[1500px] grid-cols-[repeat(auto-fit,minmax(min(18rem,100%),1fr))] items-start gap-x-11 gap-y-6 px-6 py-8 text-sm leading-relaxed text-muted-foreground"
       >
         <div>
           <div class="mb-2 text-base font-semibold tracking-tight text-foreground">양조장을 골라 보세요</div>
@@ -253,12 +290,12 @@ const SPEC_KEY = 'text-muted-foreground';
             芳醇甘口で、酸味があって、できれば生酒か無濾過生原酒が好きです。吟醸系でおすすめはありますか？
           </div>
           <div class="mt-1.5 text-xs leading-relaxed">
-            “호우쥰아마구치에 산미가 있고, 가능하면 생주나 무여과 생원주를 좋아합니다. 긴죠 계열 추천이 있나요?”
+            「호우쥰아마구치에 산미가 있고, 가능하면 생주나 무여과 생원주를 좋아합니다. 긴죠 계열 추천이 있나요?」
           </div>
         </div>
 
         <div class="border-t border-border pt-4">
-          <div class="mb-2.5 font-medium text-foreground">취향 기준 시음 흐름</div>
+          <div class="mb-2.5 font-medium text-foreground">취향 기준 시음 흐름 · 출품 미확인 후보</div>
           <ol class="flex flex-col gap-2 text-xs">
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
               <span class="font-mono text-match-1">①</span><span>스타트 — 스키고코로 니코마루 생주, 카신</span>
@@ -288,8 +325,7 @@ const SPEC_KEY = 'text-muted-foreground';
         </div>
 
         <div class="border-t border-border pt-4 text-xs leading-relaxed">
-          에히메는 400년 이상의 사케 산지로, 현재 약 35~37곳의 양조장이 있습니다. 이시즈치산 등 시코쿠 산맥의 연수~중경수를
-          써서 온화하고 섬세한 ‘이요(伊予)의 여성적인 술’로 불려 왔고, 세토내해·우와카이의 흰살생선과 특히 잘 맞습니다.
+          참가 명칭, 실제 양조장, 개별 제품을 구분했습니다. 개인 점수는 예상 취향이며 공식 분석값이 아닙니다. 공식 상품 목록에 있어도 2026 페스타 제공 및 현 재고는 미확인입니다.
         </div>
       </div>
     </section>
@@ -299,6 +335,7 @@ const SPEC_KEY = 'text-muted-foreground';
     >
       <span>© 2026 Junjak</span>
       <a
+        data-testid="guide-repository-open"
         href="https://github.com/JunjaK/ehime-ken-horoyoi"
         target="_blank"
         rel="noreferrer"

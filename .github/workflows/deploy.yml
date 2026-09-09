@@ -1,0 +1,51 @@
+name: Deploy
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run typecheck
+      - run: npm run build
+  deploy:
+    needs: verify
+    runs-on: [self-hosted, n100]
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build image
+        env:
+          PUBLIC_MAPBOX_TOKEN: ${{ secrets.PUBLIC_MAPBOX_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "$PUBLIC_MAPBOX_TOKEN" in pk.*) ;; *) echo 'Missing public Mapbox token'; exit 1;; esac
+          DOCKER_BUILDKIT=0 docker build --build-arg PUBLIC_MAPBOX_TOKEN -t ehime-horoyoi:prd .
+      - name: Deploy container
+        run: |
+          set -euo pipefail
+          docker rm -f ehime-horoyoi 2>/dev/null || true
+          docker run -d --name ehime-horoyoi --restart unless-stopped \
+            -p 127.0.0.1:9000:9000 ehime-horoyoi:prd
+      - name: Health check
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://127.0.0.1:9000/api/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs --tail 60 ehime-horoyoi
+          exit 1

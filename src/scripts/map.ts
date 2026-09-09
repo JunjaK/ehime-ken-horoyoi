@@ -1,6 +1,7 @@
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ALL_REGIONS, BREWERIES, VENUE, type Brewery, type MatchRank } from '../data/breweries.ts';
+import { ALL_REGIONS, BREWERIES, VENUE, type BrandGuide as Brewery, type MatchRank } from '../data/breweries.ts';
+import { matchesQuery, searchText } from '../lib/search.ts';
 import { spreadPoints, type SpreadPoint } from '../lib/spread.ts';
 
 /** 마커끼리 확보할 최소 화면 간격(px). */
@@ -33,6 +34,12 @@ function required<T extends Element>(selector: string): T {
 const mapEl = required<HTMLDivElement>('#map');
 const regionEl = required<HTMLSelectElement>('#region');
 const countEl = required<HTMLElement>('#count');
+const searchEl = required<HTMLInputElement>('#search');
+const searchForm = required<HTMLFormElement>('#search-form');
+const noResultsEl = required<HTMLElement>('#no-results');
+const searchStatusEl = required<HTMLElement>('#search-status');
+const mapStatusEl = required<HTMLElement>('#map-status');
+const searchIndex = new Map(BREWERIES.map((b) => [b.id, searchText(b)]));
 const emptyEl = required<HTMLElement>('#empty');
 // 스타일 클래스가 아니라 구조로 잡는다. 클래스는 리디자인 때 갈리고, 셀렉터는 조용히 죽는다.
 const rowEls = Array.from(document.querySelectorAll<HTMLButtonElement>('#list button[data-id]'));
@@ -49,7 +56,10 @@ let hoverId: number | null = null;
 let pinId: number | null = null;
 let region: string = ALL_REGIONS;
 
-const isVisible = (b: Brewery) => region === ALL_REGIONS || b.region === region;
+let searchInput = '';
+let appliedQuery = '';
+const isVisible = (b: Brewery) => (region === ALL_REGIONS || b.region === region)
+  && matchesQuery(searchIndex.get(b.id) ?? '', appliedQuery);
 
 function markerIcon(b: Brewery, active: boolean) {
   const size = active ? 32 : 25;
@@ -68,11 +78,39 @@ function markerIcon(b: Brewery, active: boolean) {
 
 const map = L.map(mapEl, { zoomControl: true, scrollWheelZoom: true, minZoom: 7, maxZoom: 14 });
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap &copy; CARTO',
-  subdomains: 'abcd',
-  maxZoom: 18,
-}).addTo(map);
+const mapboxToken = import.meta.env.PUBLIC_MAPBOX_TOKEN?.trim();
+if (!mapboxToken?.startsWith('pk.')) {
+  mapStatusEl.textContent = '지도를 불러올 수 없습니다. 브랜드 목록과 상세 정보는 이용할 수 있습니다.';
+} else {
+  const tiles = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/512/{z}/{x}/{y}{r}?access_token=${encodeURIComponent(mapboxToken)}`, {
+    attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> <a href="https://apps.mapbox.com/feedback/">지도 오류 제보</a>',
+    tileSize: 512,
+    zoomOffset: -1,
+    maxZoom: 18,
+  });
+  let tileFailed = false;
+  let loadTimer: ReturnType<typeof setTimeout> | undefined;
+  const showError = () => {
+    mapStatusEl.hidden = false;
+    mapStatusEl.textContent = '배경 지도를 불러오지 못했습니다. 브랜드 목록과 상세 정보는 이용할 수 있습니다.';
+  };
+  tiles.on('loading', () => {
+    clearTimeout(loadTimer);
+    tileFailed = false;
+    mapStatusEl.hidden = false;
+    mapStatusEl.textContent = '지도를 불러오는 중…';
+    loadTimer = setTimeout(showError, 12_000);
+  });
+  tiles.on('tileerror', () => {
+    tileFailed = true;
+    showError();
+  });
+  tiles.on('load', () => {
+    clearTimeout(loadTimer);
+    mapStatusEl.hidden = !tileFailed;
+  });
+  tiles.addTo(map);
+}
 
 for (const b of BREWERIES) {
   const marker = L.marker([b.lat, b.lng], { icon: markerIcon(b, false), riseOnHover: true, keyboard: false })
@@ -130,17 +168,21 @@ function spreadMarkers() {
 }
 
 function render() {
-  const activeId = hoverId ?? pinId;
+  // 클릭 선택은 지도 이동 중 다른 마커의 호버보다 우선한다.
+  const activeId = pinId ?? hoverId;
 
   let visibleCount = 0;
   for (const row of rowEls) {
     const id = Number(row.dataset.id);
-    const shown = region === ALL_REGIONS || row.dataset.region === region;
+    const b = byId.get(id);
+    const shown = b !== undefined && isVisible(b);
     row.hidden = !shown;
     row.setAttribute('aria-current', String(id === activeId));
     if (shown) visibleCount++;
   }
   countEl.textContent = String(visibleCount);
+  noResultsEl.hidden = visibleCount !== 0;
+  searchStatusEl.textContent = appliedQuery ? `「${appliedQuery}」 · ${visibleCount}개 브랜드` : `지역 내 ${visibleCount}개 브랜드 · Enter 또는 검색으로 적용`;
 
   for (const detail of detailEls) {
     detail.hidden = Number(detail.dataset.id) !== activeId;
@@ -158,6 +200,7 @@ function render() {
 
     marker.setIcon(markerIcon(b, b.id === activeId));
     marker.setZIndexOffset(b.id === activeId ? 1200 : 0);
+    marker.getElement()?.setAttribute('data-testid', `guide-marker-select-${b.id}`);
   }
 }
 
@@ -211,7 +254,10 @@ for (const row of rowEls) {
 
 regionEl.addEventListener('change', () => {
   region = regionEl.value;
+  applyFilters();
+});
 
+function applyFilters() {
   // 필터 밖으로 나간 양조장이 상세 패널에 남아 있으면 목록·지도와 어긋난다.
   const survives = (id: number | null) => {
     if (id === null) return false;
@@ -222,6 +268,21 @@ regionEl.addEventListener('change', () => {
   if (!survives(pinId)) pinId = null;
 
   render();
+}
+
+searchEl.addEventListener('input', () => { searchInput = searchEl.value; });
+searchForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  searchInput = searchEl.value;
+  appliedQuery = searchInput.trim();
+  applyFilters();
+});
+searchForm.addEventListener('reset', (event) => {
+  event.preventDefault();
+  searchInput = '';
+  appliedQuery = '';
+  searchEl.value = '';
+  applyFilters();
 });
 
 map.on('zoomend', () => {
@@ -232,3 +293,12 @@ map.on('zoomend', () => {
 map.fitBounds(L.latLngBounds(BREWERIES.map((b) => [b.lat, b.lng])).pad(0.14));
 spreadMarkers();
 render();
+
+for (const [selector, testId, label] of [
+  ['.leaflet-control-zoom-in', 'guide-map-zoom-in', '지도 확대'],
+  ['.leaflet-control-zoom-out', 'guide-map-zoom-out', '지도 축소'],
+]) {
+  const control = mapEl.querySelector<HTMLElement>(selector);
+  control?.setAttribute('data-testid', testId);
+  control?.setAttribute('aria-label', label);
+}
