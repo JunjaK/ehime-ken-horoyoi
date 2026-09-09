@@ -5,7 +5,7 @@
 
 [ehime-horoyoi.jun-devlog.win](https://ehime-horoyoi.jun-devlog.win/)
 
-Astro 7 정적 사이트. 지도는 Leaflet + Mapbox 다크 타일. 스타일은 Tailwind v4 + shadcn 다크 팔레트(라이트 모드 없음), 폰트는 Pretendard / Pretendard JP.
+Astro 7 정적 사이트. 지도는 Mapbox GL JS의 다크 스타일을 사용한다. 스타일은 Tailwind v4 + shadcn 다크 팔레트(라이트 모드 없음), 폰트는 Pretendard / Pretendard JP. UI는 한국어, 영어, 일본어를 지원한다.
 
 | 명령 | 설명 |
 | --- | --- |
@@ -19,6 +19,7 @@ Astro 7 정적 사이트. 지도는 Leaflet + Mapbox 다크 타일. 스타일은
 
 - `src/data/breweries.ts` — 19개 브랜드 데이터(SSOT). 지역별 개수 같은 파생값은 여기서 계산한다.
 - `src/lib/spread.ts` — 겹친 지도 마커를 밀어내는 순수 함수.
-- `src/scripts/map.ts` — Leaflet 초기화와 목록·지도·상세 패널 연동.
+- `src/scripts/map.ts` — Mapbox GL JS 초기화와 목록·지도·상세 패널 연동.
+- `src/i18n/` — 한국어·영어·일본어 로케일과 클라이언트 언어 전환 런타임.
 - `src/pages/index.astro` — 마크업. 상세 패널 19개는 전부 빌드 시점에 렌더링하고 JS는 표시 여부만 토글한다.
-- `src/styles/global.css` — shadcn 다크 토큰(SSOT)과 Leaflet 다크 오버라이드. 마커 색도 여기 `--color-match-*` 가 원본이고 `map.ts` 는 읽어 쓴다.
+- `src/styles/global.css` — shadcn 다크 토큰(SSOT)과 Mapbox GL 컨트롤·마커 스타일. 마커 색도 여기 `--color-match-*` 가 원본이고 `map.ts` 는 읽어 쓴다.

@@ -3,6 +3,8 @@ import { BREWERIES, MATCH_LABEL, REGION_FILTERS, REGION_LABEL_KO, tasteBars } fr
 import '../styles/global.css';
 import Sources from '../components/Sources.astro';
 import ProductCard from '../components/ProductCard.astro';
+import { ko as koMessages } from '../i18n/locales/ko.ts';
+import type { MessageKey } from '../i18n/runtime.ts';
 
 // 클래스명을 문자열 그대로 적어야 Tailwind 스캐너가 잡는다. 문자열 조합 금지.
 const DOT_BG: Record<number, string> = { 1: 'bg-match-1', 2: 'bg-match-2', 3: 'bg-match-3' };
@@ -16,6 +18,19 @@ const BAR_BG: Record<number, string> = { 1: 'bg-match-1', 2: 'bg-match-2', 3: 'b
 const EYEBROW = 'font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase';
 const CARD = 'rounded-xl border border-border bg-card';
 const SPEC_KEY = 'text-muted-foreground';
+const t = (key: MessageKey, fallback: string, variables: Record<string, number | string> = {}) => {
+  const message = koMessages[key] ?? fallback;
+  return message.replace(/\{(\w+)\}/g, (match, name: string) => String(variables[name] ?? match));
+};
+const vars = (variables: Record<string, number | string>) => JSON.stringify(variables);
+const guideStyleEn = (b: (typeof BREWERIES)[number]) => `Personal estimate: body ${b.body}/5, acidity ${b.acid}/5, aroma ${b.aroma}/5, and dryness ${b.dry}/5. Ask the booth about the current lineup before choosing.`;
+const guideStyleJp = (b: (typeof BREWERIES)[number]) => `個人予想：芳醇度 ${b.body}/5、酸味 ${b.acid}/5、香り ${b.aroma}/5、辛口度 ${b.dry}/5。当日のラインナップはブースでご確認ください。`;
+const firstProduct = (b: (typeof BREWERIES)[number]) => b.products[0]?.nameJa ?? b.ja;
+const regionText = {
+  東予: ['도요(에히메 동부)', 'Toyo (eastern Ehime)', '東予（愛媛東部）'],
+  中予: ['주요(마쓰야마 권역)', 'Chuyo (Matsuyama area)', '中予（松山地域）'],
+  南予: ['난요(에히메 남부)', 'Nanyo (southern Ehime)', '南予（愛媛南部）'],
+} as const;
 ---
 
 <!doctype html>
@@ -24,10 +39,10 @@ const SPEC_KEY = 'text-muted-foreground';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>에히메현 양조장 지도 · 호로요이 페스타 2026</title>
+    <title>{t('page.title', '에히메현 양조장 지도 · 호로요이 페스타 2026')}</title>
     <meta
       name="description"
-      content="호로요이 페스타 2026(2026.10.02 마쓰야마 조자야마 공원) 참가 19개 브랜드의 위치, 맛 프로필, 우선 시도할 술과 부스에서 쓸 일본어 문장."
+      content={t('page.description', '호로요이 페스타 2026 참가 19개 브랜드의 위치와 시음 정보를 정리했습니다.')}
     />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
@@ -43,53 +58,58 @@ const SPEC_KEY = 'text-muted-foreground';
   <body class="flex min-h-screen flex-col">
     <header class="flex flex-wrap items-end gap-x-8 gap-y-4 border-b border-border px-6 py-6">
       <div class="flex-1 basis-80">
-        <p class={EYEBROW}>ほろよいフェスタ 2026 · 2026.10.02 松山城山公園</p>
-        <h1 class="mt-2 text-3xl font-semibold tracking-tight">에히메현 양조장 지도</h1>
-        <p class="mt-2 max-w-[52ch] text-sm leading-relaxed text-pretty text-muted-foreground">
-          호로요이 페스타 2026 참가 19개 브랜드. 지도의 점 위에 마우스를 올리거나(모바일은 탭) 왼쪽 목록을 누르면
-          양조장 정보가 나옵니다.
-        </p>
+        <p data-i18n="page.eyebrow" class={EYEBROW}>{t('page.eyebrow', '호로요이 페스타 2026 · 2026.10.02 마쓰야마 조자야마 공원')}</p>
+        <h1 data-i18n="page.heading" class="mt-2 text-3xl font-semibold tracking-tight">{t('page.heading', '에히메현 양조장 지도')}</h1>
+        <p data-i18n="page.intro" class="mt-2 max-w-[58ch] text-sm leading-relaxed text-pretty text-muted-foreground">{t('page.intro', '호로요이 페스타 2026 참가 브랜드를 지도에서 확인하세요.')}</p>
       </div>
 
-      <div class="flex flex-col gap-2">
-        <label for="region" class="text-xs font-medium text-muted-foreground">지역</label>
+      <div class="ml-auto flex flex-wrap items-end gap-4">
+        <fieldset class="flex flex-col gap-2">
+          <legend data-i18n="language.label" class="text-xs font-medium text-muted-foreground">{t('language.label', '언어')}</legend>
+          <div class="flex rounded-md border border-border p-0.5" aria-label={t('language.label', '언어')}>
+            <button type="button" data-locale="ko" data-testid="guide-language-ko" class="rounded px-2.5 py-1.5 text-xs transition-colors hover:bg-accent" aria-pressed="true">한국어</button>
+            <button type="button" data-locale="en" data-testid="guide-language-en" class="rounded px-2.5 py-1.5 text-xs transition-colors hover:bg-accent" aria-pressed="false">EN</button>
+            <button type="button" data-locale="jp" data-testid="guide-language-jp" class="rounded px-2.5 py-1.5 text-xs transition-colors hover:bg-accent" aria-pressed="false">日本語</button>
+          </div>
+        </fieldset>
+        <div class="flex flex-col gap-2">
+        <label for="region" data-i18n="region.label" class="text-xs font-medium text-muted-foreground">{t('region.label', '지역')}</label>
         <select
           id="region"
           data-testid="guide-region-select"
           class="h-9 min-w-54 appearance-none rounded-md border border-input bg-transparent bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22><path d=%22M0 0l5 6 5-6z%22 fill=%22%23a1a1a1%22/></svg>')] bg-[length:10px_6px] bg-[position:right_0.75rem_center] bg-no-repeat py-1 pr-8 pl-3 text-sm shadow-xs transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          {REGION_FILTERS.map((option) => <option value={option.value}>{option.label}</option>)}
+          {REGION_FILTERS.map((option, index) => <option value={option.value} data-i18n={['region.all', 'region.east', 'region.central', 'region.south'][index]} data-i18n-vars={vars({ count: index === 0 ? BREWERIES.length : BREWERIES.filter((b) => b.region === option.value).length })}>{option.label}</option>)}
         </select>
+        </div>
       </div>
     </header>
 
     <section class={`mx-6 mt-4 p-5 ${CARD}`}>
       <div class="flex flex-wrap items-baseline gap-3 border-b border-border pb-3.5">
-        <span class={EYEBROW}>행사 정보</span>
-        <span class="text-base font-semibold tracking-tight">호로요이 페스타 2026</span>
+        <span data-i18n="event.eyebrow" class={EYEBROW}>{t('event.eyebrow', '행사 정보')}</span>
+        <span data-i18n="event.title" class="text-base font-semibold tracking-tight">{t('event.title', '호로요이 페스타 2026')}</span>
       </div>
 
       <dl class="mt-4 grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
         <div>
-          <dt class={SPEC_KEY}>일시</dt>
-          <dd class="mt-1">10월 2일(금) · 접수 18:00 · 건배 19:00</dd>
+          <dt data-i18n="event.date_label" class={SPEC_KEY}>{t('event.date_label', '일시')}</dt>
+          <dd data-i18n="event.date" class="mt-1">{t('event.date', '10월 2일(금) · 접수 18:00 · 건배 19:00')}</dd>
         </div>
         <div>
-          <dt class={SPEC_KEY}>장소</dt>
-          <dd class="mt-1">마쓰야마시 호리노우치 조자야마 공원 관리광장</dd>
+          <dt data-i18n="event.place_label" class={SPEC_KEY}>{t('event.place_label', '장소')}</dt>
+          <dd data-i18n="event.place" class="mt-1">{t('event.place', '마쓰야마시 호리노우치 조자야마 공원 관리광장')}</dd>
         </div>
         <div>
-          <dt class={SPEC_KEY}>회비</dt>
-          <dd class="mt-1">사전 5,500엔 / 현장 6,500엔 · 20~30세 3,500엔 / 4,500엔 (식사권 1,000엔 포함)</dd>
+          <dt data-i18n="event.fee_label" class={SPEC_KEY}>{t('event.fee_label', '회비')}</dt>
+          <dd data-i18n="event.fee" class="mt-1">{t('event.fee', '사전 5,500엔 / 현장 6,500엔')}</dd>
         </div>
         <div>
-          <dt class={SPEC_KEY}>주의</dt>
-          <dd class="mt-1 text-muted-foreground">
-            정원제 · 우천 취소. 취소 여부는 9/30 12시 에히메현 사케조합 홈페이지 공지. 20~30세 할인은 신분증 필요.
-          </dd>
+          <dt data-i18n="event.notice_label" class={SPEC_KEY}>{t('event.notice_label', '주의')}</dt>
+          <dd data-i18n="event.notice" class="mt-1 text-muted-foreground">{t('event.notice', '정원제 · 우천 취소.')}</dd>
         </div>
       </dl>
-      <p class="mt-4 text-xs text-muted-foreground">제품별 행사 제공은 미확인입니다. <a data-testid="guide-event-source-open" href="https://www.ishizuchi.co.jp/?p=1669" target="_blank" rel="noreferrer" class="underline underline-offset-4">2026 공식 행사 안내</a></p>
+      <p class="mt-4 text-xs text-muted-foreground"><span data-i18n="event.offering_unknown">{t('event.offering_unknown', '제품별 행사 제공은 미확인입니다.')}</span> <a data-i18n="event.source" data-testid="guide-event-source-open" href="https://www.ishizuchi.co.jp/?p=1669" target="_blank" rel="noreferrer" class="underline underline-offset-4">{t('event.source', '2026 공식 행사 안내')}</a></p>
     </section>
 
     <main class="flex min-h-0 flex-1 flex-col split:flex-row split:items-stretch">
@@ -97,22 +117,22 @@ const SPEC_KEY = 'text-muted-foreground';
         class="flex max-h-[min(52vh,420px)] w-full flex-col border-b border-border split:max-h-[min(72vh,520px)] split:w-80 split:flex-none split:border-r split:border-b-0"
       >
         <div class="flex items-baseline justify-between border-b border-border px-4 py-3">
-          <h2 class="text-sm font-semibold tracking-tight">참가 브랜드</h2>
+          <h2 data-i18n="brand.heading" class="text-sm font-semibold tracking-tight">{t('brand.heading', '참가 브랜드')}</h2>
           <span class="font-mono text-xs tabular-nums text-muted-foreground">
             <span id="count">{BREWERIES.length}</span> / {BREWERIES.length}
           </span>
         </div>
 
         <form id="search-form" class="border-b border-border p-3" role="search" data-testid="guide-search-form">
-          <label for="search" class="text-xs font-medium text-muted-foreground">브랜드 · 양조장 · 제품 검색</label>
-          <input id="search" data-testid="guide-search-input" type="search" placeholder="風の里, 오즈, Sakura" class="mt-2 h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-2" />
+          <label for="search" data-i18n="search.label" class="text-xs font-medium text-muted-foreground">{t('search.label', '브랜드 · 양조장 · 제품 검색')}</label>
+          <input id="search" data-testid="guide-search-input" data-i18n-placeholder="search.placeholder" type="search" placeholder={t('search.placeholder', '風の里, 오즈, Sakura')} class="mt-2 h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-2" />
           <div class="mt-2 flex justify-end gap-2">
-            <button type="reset" data-testid="guide-search-reset" class="rounded-md border border-border px-3 py-2 text-xs">초기화</button>
-            <button type="submit" data-testid="guide-search-apply" class="rounded-md border border-foreground bg-foreground px-3 py-2 text-xs font-medium text-background">검색</button>
+            <button type="reset" data-i18n="search.reset" data-testid="guide-search-reset" class="rounded-md border border-border px-3 py-2 text-xs">{t('search.reset', '초기화')}</button>
+            <button type="submit" data-i18n="search.apply" data-testid="guide-search-apply" class="rounded-md border border-foreground bg-foreground px-3 py-2 text-xs font-medium text-background">{t('search.apply', '검색')}</button>
           </div>
-          <p id="search-status" class="mt-2 text-xs text-muted-foreground" aria-live="polite">입력 후 Enter 또는 검색을 누르세요.</p>
+          <p id="search-status" class="mt-2 text-xs text-muted-foreground" aria-live="polite">{t('search.prompt', '입력 후 Enter 또는 검색을 누르세요.')}</p>
         </form>
-        <p id="no-results" hidden role="status" class="p-4 text-sm text-muted-foreground">검색 결과가 없습니다. 검색어나 지역을 바꿔 보세요.</p>
+        <p id="no-results" data-i18n="search.none" hidden role="status" class="p-4 text-sm text-muted-foreground">{t('search.none', '검색 결과가 없습니다. 검색어나 지역을 바꿔 보세요.')}</p>
         <div id="list" class="overflow-y-auto p-2">
           {
             BREWERIES.map((b) => (
@@ -130,13 +150,11 @@ const SPEC_KEY = 'text-muted-foreground';
                 </span>
                 <span class="min-w-0">
                   <span class="flex flex-wrap items-baseline gap-x-2">
-                    <span class="text-sm font-medium tracking-tight">{b.ko}</span>
-                    <span class="text-xs text-muted-foreground" lang="ja">
-                      {b.ja}
-                    </span>
+                    <span class="text-sm font-medium tracking-tight" data-l10n-ko={b.ko} data-l10n-en={b.ja} data-l10n-jp={b.ja}>{b.ko}</span>
+                    <span class="text-xs text-muted-foreground" lang="ja" data-l10n-ko={b.ja} data-l10n-en={b.brand.nameKana ?? ''} data-l10n-jp={b.brand.nameKana ?? ''}>{b.ja}</span>
                   </span>
                   <span class="mt-0.5 block truncate text-xs text-muted-foreground">
-                    {b.brewery} · {b.city}
+                    <span data-l10n-ko={`${b.brewery} · ${b.city}`} data-l10n-en={`${b.brewery} · ${b.producer.cityJa}`} data-l10n-jp={`${b.brewery} · ${b.producer.cityJa}`}>{b.brewery} · {b.city}</span>
                   </span>
                 </span>
               </button>
@@ -146,16 +164,16 @@ const SPEC_KEY = 'text-muted-foreground';
       </aside>
 
       <div class="relative m-3 min-h-115 overflow-hidden rounded-xl border border-border split:min-w-75 split:flex-1">
-        <div id="map" class="absolute inset-0" aria-label="참가 브랜드 양조장 대략 위치"></div>
-        <p id="map-status" role="status" class="absolute top-3 right-3 z-500 max-w-64 rounded-md border border-border bg-card px-3 py-2 text-xs">지도를 불러오는 중…</p>
+        <div id="map" data-i18n-aria="map.label" class="absolute inset-0" aria-label={t('map.label', '참가 브랜드 양조장 대략 위치')}></div>
+        <p id="map-status" role="status" class="absolute top-3 right-3 z-500 max-w-64 rounded-md border border-border bg-card px-3 py-2 text-xs">{t('map.loading', '지도를 불러오는 중…')}</p>
 
         <div
           class="absolute bottom-3 left-3 z-500 flex flex-col gap-1.5 rounded-lg border border-border bg-card/90 px-3 py-2.5 text-xs text-muted-foreground backdrop-blur-sm"
         >
-          <p class="max-w-52 text-[10px]">지역 대표점 · 건물 위치 아님<br />겹친 번호는 가독성을 위해 이동</p>
-          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-1"></span>취향 최우선</div>
-          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-2"></span>다음 우선순위</div>
-          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-3"></span>후순위 · 소주</div>
+          <p data-i18n="map.note" class="max-w-52 whitespace-pre-line text-[10px]">{t('map.note', '지역 대표점 · 건물 위치 아님\n겹친 번호는 가독성을 위해 이동')}</p>
+          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-1"></span><span data-i18n="match.first">{t('match.first', '★ 취향 최우선')}</span></div>
+          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-2"></span><span data-i18n="match.second">{t('match.second', '다음 우선순위')}</span></div>
+          <div class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-match-3"></span><span data-i18n="match.third">{t('match.third', '후순위 · 확인 필요')}</span></div>
         </div>
       </div>
     </main>
@@ -172,14 +190,16 @@ const SPEC_KEY = 'text-muted-foreground';
               type="button"
               data-clear
               data-testid={`guide-selection-clear-${b.id}`}
-              title="선택 해제 (Esc)"
-              aria-label="선택 해제"
+              title={t('detail.clear_title', '선택 해제 (Esc)')}
+              aria-label={t('detail.clear', '선택 해제')}
+              data-i18n-title="detail.clear_title"
+              data-i18n-aria="detail.clear"
               class="absolute top-6 right-6 z-10 inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <svg viewBox="0 0 24 24" class="size-3.5" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                 <path d="M18 6 6 18M6 6l12 12" stroke-linecap="round" />
               </svg>
-              <span class="hidden sm:inline">선택 해제</span>
+              <span data-i18n="detail.clear" class="hidden sm:inline">{t('detail.clear', '선택 해제')}</span>
             </button>
 
             <div class="flex-1 basis-85 space-y-0">
@@ -190,23 +210,21 @@ const SPEC_KEY = 'text-muted-foreground';
                   {b.id}
                 </span>
                 <span class={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${BADGE[b.match]}`}>
-                  {MATCH_LABEL[b.match]}
+                  <span data-i18n={['', 'match.first', 'match.second', 'match.third'][b.match]}>{MATCH_LABEL[b.match]}</span>
                 </span>
               </div>
 
-              <h2 class="mt-3 text-2xl font-semibold tracking-tight">{b.ko}</h2>
-              <div class="mt-0.5 text-sm text-muted-foreground" lang="ja">
-                {b.ja} · {b.brand.nameKana}
-              </div>
-              <p class="mt-4 text-xs font-medium text-match-2">개인 시음 가이드 · 공식 사양 아님</p>
-              <p class="mt-2 text-xs leading-relaxed text-muted-foreground">기존 취향 메모를 유지했습니다. 제품명·수상·제법에 관한 메모는 별도 검증되지 않았으므로 아래 출처 있는 제품 정보를 우선하세요.</p>
-              <p class="mt-3.5 text-sm leading-relaxed text-pretty text-muted-foreground">{b.style}</p>
+              <h2 class="mt-3 text-2xl font-semibold tracking-tight" data-l10n-ko={b.ko} data-l10n-en={b.ja} data-l10n-jp={b.ja}>{b.ko}</h2>
+              <div class="mt-0.5 text-sm text-muted-foreground" lang="ja" data-l10n-ko={`${b.ja} · ${b.brand.nameKana ?? ''}`} data-l10n-en={b.brand.nameKana ?? ''} data-l10n-jp={b.brand.nameKana ?? ''}>{b.ja} · {b.brand.nameKana}</div>
+              <p data-i18n="detail.personal" class="mt-4 text-xs font-medium text-match-2">{t('detail.personal', '개인 시음 가이드 · 공식 사양 아님')}</p>
+              <p data-i18n="detail.personal_note" class="mt-2 text-xs leading-relaxed text-muted-foreground">{t('detail.personal_note', '기존 취향 메모를 유지했습니다.')}</p>
+              <p class="mt-3.5 text-sm leading-relaxed text-pretty text-muted-foreground" data-l10n-ko={b.style} data-l10n-en={guideStyleEn(b)} data-l10n-jp={guideStyleJp(b)}>{b.style}</p>
 
               <div class="mt-5 space-y-2.5 border-t border-border pt-4">
-                <div class={EYEBROW}>예상 맛 프로필 · 개인 평가</div>
-                {tasteBars(b).map((bar) => (
+                <div data-i18n="detail.taste" class={EYEBROW}>{t('detail.taste', '예상 맛 프로필 · 개인 평가')}</div>
+                {tasteBars(b).map((bar, index) => (
                   <div class="grid grid-cols-[3.5rem_1fr_2rem] items-center gap-2.5">
-                    <span class="text-xs text-muted-foreground">{bar.label}</span>
+                    <span data-i18n={['taste.body', 'taste.acid', 'taste.aroma', 'taste.dry'][index]} class="text-xs text-muted-foreground">{bar.label}</span>
                     <span class="h-1.5 overflow-hidden rounded-full bg-muted">
                       <span class={`block h-full rounded-full ${BAR_BG[b.match]}`} style={`width:${bar.value * 20}%`} />
                     </span>
@@ -220,55 +238,55 @@ const SPEC_KEY = 'text-muted-foreground';
 
             <div class="flex-1 basis-85">
               <dl class="grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-2.5 text-sm">
-                <dt class={SPEC_KEY}>양조장</dt>
-                <dd><span lang="ja">{b.brewery}</span><span class="mt-1 block text-xs text-muted-foreground">{b.producer.nameKo} · {b.producer.nameKana}</span></dd>
-                <dt class={SPEC_KEY}>창업</dt>
-                <dd>{b.founded}</dd>
-                <dt class={SPEC_KEY}>주소</dt>
+                <dt data-i18n="spec.brewery" class={SPEC_KEY}>{t('spec.brewery', '양조장')}</dt>
+                <dd><span lang="ja">{b.brewery}</span><span class="mt-1 block text-xs text-muted-foreground" data-l10n-ko={`${b.producer.nameKo} · ${b.producer.nameKana ?? ''}`} data-l10n-en={b.producer.nameKana ?? ''} data-l10n-jp={b.producer.nameKana ?? ''}>{b.producer.nameKo} · {b.producer.nameKana}</span></dd>
+                <dt data-i18n="spec.founded" class={SPEC_KEY}>{t('spec.founded', '창업')}</dt>
+                <dd data-l10n-ko={b.founded} data-l10n-en={b.producer.founded === null ? 'Unconfirmed' : `Founded ${b.producer.founded}`} data-l10n-jp={b.producer.founded === null ? '未確認' : `${b.producer.founded}年創業`}>{b.founded}</dd>
+                <dt data-i18n="spec.address" class={SPEC_KEY}>{t('spec.address', '주소')}</dt>
                 <dd class="font-mono text-xs leading-relaxed" lang="ja">
                   {b.addr}
                 </dd>
-                <dt class={SPEC_KEY}>지역</dt>
-                <dd>{REGION_LABEL_KO[b.region]}</dd>
-                {b.water && <><dt class={SPEC_KEY}>물·쌀</dt><dd>{b.water}</dd></>}
-                <dt class={SPEC_KEY}>추천 페어링</dt>
-                <dd>{b.pair}</dd>
-                <dt class={SPEC_KEY}>온도</dt>
-                <dd>{b.temp}</dd>
-                <dt class={SPEC_KEY}>시음 순서</dt>
-                <dd>{b.step}</dd>
+                <dt data-i18n="spec.region" class={SPEC_KEY}>{t('spec.region', '지역')}</dt>
+                <dd data-l10n-ko={regionText[b.region][0]} data-l10n-en={regionText[b.region][1]} data-l10n-jp={regionText[b.region][2]}>{REGION_LABEL_KO[b.region]}</dd>
+                {b.water && <><dt data-i18n="spec.materials" class={SPEC_KEY}>{t('spec.materials', '물·쌀')}</dt><dd data-l10n-ko={b.water} data-l10n-en="See the official brewery sources for water and rice details." data-l10n-jp="仕込み水と使用米は蔵元の公式資料をご確認ください。">{b.water}</dd></>}
+                <dt data-i18n="spec.pairing" class={SPEC_KEY}>{t('spec.pairing', '추천 페어링')}</dt>
+                <dd data-l10n-ko={b.pair} data-l10n-en="Ask the booth for a pairing recommendation." data-l10n-jp="おすすめの料理はブースでお尋ねください。">{b.pair}</dd>
+                <dt data-i18n="spec.temperature" class={SPEC_KEY}>{t('spec.temperature', '온도')}</dt>
+                <dd data-l10n-ko={b.temp} data-l10n-en="Compare chilled and room temperature when available." data-l10n-jp="可能であれば冷酒と常温を比較してください。">{b.temp}</dd>
+                <dt data-i18n="spec.order" class={SPEC_KEY}>{t('spec.order', '시음 순서')}</dt>
+                <dd data-l10n-ko={b.step} data-l10n-en={`Personal order ${b.id}`} data-l10n-jp={`個人試飲順 ${b.id}`}>{b.step}</dd>
               </dl>
 
               <div class="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3.5">
-                <div class={EYEBROW}>우선 시도 · 기존 개인 후보, 출품 미확인</div>
-                <div class="mt-1.5 text-sm leading-relaxed">{b.pick}</div>
+                <div data-i18n="pick.heading" class={EYEBROW}>{t('pick.heading', '우선 시도 · 기존 개인 후보, 출품 미확인')}</div>
+                <div class="mt-1.5 text-sm leading-relaxed" data-l10n-ko={b.pick} data-l10n-en={`First candidate: ${firstProduct(b)}. Event availability is unconfirmed.`} data-l10n-jp={`優先候補：${firstProduct(b)}。当日の提供は未確認です。`}>{b.pick}</div>
               </div>
 
               <div class="mt-3 rounded-lg border border-dashed border-border px-4 py-3.5">
-                <div class={EYEBROW}>부스에서 물어볼 말</div>
+                <div data-i18n="booth.heading" class={EYEBROW}>{t('booth.heading', '부스에서 물어볼 말')}</div>
                 <div class="mt-1.5 text-sm leading-relaxed" lang="ja">
                   {b.jp}
                 </div>
-                <div class="mt-1.5 text-xs leading-relaxed text-muted-foreground">{b.jpKo}</div>
+                <div class="mt-1.5 text-xs leading-relaxed text-muted-foreground" data-l10n-ko={b.jpKo} data-l10n-en="Show or read the Japanese sentence above at the booth." data-l10n-jp="上の質問をそのままブースでお使いいただけます。">{b.jpKo}</div>
               </div>
             </div>
             <div class="w-full border-t border-border pt-5">
-              <h3 class="text-lg font-semibold">양조장 특징 · 출처 기반</h3>
-              <p class="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">{b.producer.descriptionKo}</p>
-              <p class="mt-2 text-xs text-muted-foreground">지도 위치: {b.producer.location.label} 지역 대표점. 방문 시 공식 주소를 확인하세요.</p>
-              {b.brand.lineupNote && <p class="mt-3 max-w-3xl text-sm leading-relaxed text-match-2">{b.brand.lineupNote}</p>}
+              <h3 data-i18n="producer.heading" class="text-lg font-semibold">{t('producer.heading', '양조장 특징 · 출처 기반')}</h3>
+              <p class="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground" data-l10n-ko={b.producer.descriptionKo} data-l10n-en={`${b.producer.nameJa} is based in ${b.producer.cityJa}, Ehime. The location and founding details shown here are based on the cited official sources.`} data-l10n-jp={`${b.producer.nameJa}は愛媛県${b.producer.cityJa}の酒蔵です。所在地と創業情報は下記の公式資料に基づいています。`}>{b.producer.descriptionKo}</p>
+              <p class="mt-2 text-xs text-muted-foreground" data-l10n-ko={t('producer.location', '지도 위치: {location} 지역 대표점. 방문 시 공식 주소를 확인하세요.', { location: b.producer.location.label })} data-l10n-en={`Map location: representative point for ${b.producer.cityJa}. Check the official address before visiting.`} data-l10n-jp={`地図位置：${b.producer.cityJa}の地域代表点です。訪問前に公式住所をご確認ください。`}>{t('producer.location', '지도 위치: {location} 지역 대표점. 방문 시 공식 주소를 확인하세요.', { location: b.producer.location.label })}</p>
+              {b.brand.lineupNote && <p class="mt-3 max-w-3xl text-sm leading-relaxed text-match-2" data-l10n-ko={b.brand.lineupNote} data-l10n-en="Related labels from the same brewery are listed separately below when verified." data-l10n-jp="同じ酒蔵の関連銘柄は、確認できた場合に下記へ分けて掲載しています。">{b.brand.lineupNote}</p>}
               <Sources sources={[...b.producer.sources, b.producer.location.source]} id={`producer-${b.id}`} />
             </div>
             <div class="w-full border-t border-border pt-5">
               <div class="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 class="text-lg font-semibold">대표 제품 · {b.products.length}종</h3>
-                <span class="text-xs text-muted-foreground">제품 자료 ≠ 2026 출품 목록</span>
+                <h3 data-i18n="products.heading" data-i18n-vars={vars({ count: b.products.length })} class="text-lg font-semibold">{t('products.heading', '대표 제품 · {count}종', { count: b.products.length })}</h3>
+                <span data-i18n="products.badge" class="text-xs text-muted-foreground">{t('products.badge', '제품 자료 ≠ 2026 출품 목록')}</span>
               </div>
-              <p class="mt-2 text-xs leading-relaxed text-muted-foreground">확인된 사양만 표시합니다. 정미율·도수 등은 로트에 따라 달라질 수 있으며, 속성 표시가 없다고 화입주라는 뜻은 아닙니다.</p>
+              <p data-i18n="products.intro" class="mt-2 text-xs leading-relaxed text-muted-foreground">{t('products.intro', '확인된 사양만 표시합니다.')}</p>
               <div class="mt-4 grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {b.products.map((product) => <ProductCard product={product} brandName={b.relatedBrands.find((brand) => brand.id === product.brandId)?.nameJa ?? ''} related={product.brandId !== b.brand.id} />)}
               </div>
-              {b.products.length === 0 && <p class="mt-4 text-sm text-muted-foreground">출처가 확인된 제품을 아직 등록하지 못했습니다.</p>}
+              {b.products.length === 0 && <p data-i18n="products.empty" class="mt-4 text-sm text-muted-foreground">{t('products.empty', '출처가 확인된 제품을 아직 등록하지 못했습니다.')}</p>}
             </div>
           </article>
         ))
@@ -279,53 +297,50 @@ const SPEC_KEY = 'text-muted-foreground';
         class="grid max-w-[1500px] grid-cols-[repeat(auto-fit,minmax(min(18rem,100%),1fr))] items-start gap-x-11 gap-y-6 px-6 py-8 text-sm leading-relaxed text-muted-foreground"
       >
         <div>
-          <div class="mb-2 text-base font-semibold tracking-tight text-foreground">양조장을 골라 보세요</div>
-          지도의 번호를 올리거나 탭하면 여기에 브랜드 스타일, 맛 프로필, 주소, 우선 시도할 술, 부스에서 쓸 일본어 문장이
-          표시됩니다.
+          <div data-i18n="empty.heading" class="mb-2 text-base font-semibold tracking-tight text-foreground">{t('empty.heading', '양조장을 골라 보세요')}</div>
+          <p data-i18n="empty.body">{t('empty.body', '지도의 번호를 올리거나 탭하면 상세 정보가 표시됩니다.')}</p>
         </div>
 
         <div>
-          <div class="mb-1.5 font-medium text-foreground">부스에서 쓸 공통 한 문장</div>
+          <div data-i18n="empty.phrase_heading" class="mb-1.5 font-medium text-foreground">{t('empty.phrase_heading', '부스에서 쓸 공통 한 문장')}</div>
           <div class="text-sm leading-relaxed text-foreground" lang="ja">
             芳醇甘口で、酸味があって、できれば生酒か無濾過生原酒が好きです。吟醸系でおすすめはありますか？
           </div>
-          <div class="mt-1.5 text-xs leading-relaxed">
-            「호우쥰아마구치에 산미가 있고, 가능하면 생주나 무여과 생원주를 좋아합니다. 긴죠 계열 추천이 있나요?」
-          </div>
+          <div data-i18n="empty.phrase_translation" class="mt-1.5 text-xs leading-relaxed">{t('empty.phrase_translation', '「호우쥰아마구치에 산미가 있고, 가능하면 생주나 무여과 생원주를 좋아합니다. 긴죠 계열 추천이 있나요?」')}</div>
         </div>
 
         <div class="border-t border-border pt-4">
-          <div class="mb-2.5 font-medium text-foreground">취향 기준 시음 흐름 · 출품 미확인 후보</div>
+          <div data-i18n="empty.flow_heading" class="mb-2.5 font-medium text-foreground">{t('empty.flow_heading', '취향 기준 시음 흐름 · 출품 미확인 후보')}</div>
           <ol class="flex flex-col gap-2 text-xs">
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-1">①</span><span>스타트 — 스키고코로 니코마루 생주, 카신</span>
+              <span class="font-mono text-match-1">①</span><span data-i18n="empty.flow_1">{t('empty.flow_1', '스타트 · 스키고코로 니코마루 생주, 카신')}</span>
             </li>
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-1">②</span><span>하나히메자쿠라 아라바시리 생원주</span>
+              <span class="font-mono text-match-1">②</span><span data-i18n="empty.flow_2">{t('empty.flow_2', '하나히메자쿠라 아라바시리 생원주')}</span>
             </li>
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-1">③</span><span>이요카기야 무여과 생원주</span>
+              <span class="font-mono text-match-1">③</span><span data-i18n="empty.flow_3">{t('empty.flow_3', '이요카기야 무여과 생원주')}</span>
             </li>
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-1">④</span><span>야마토고코로 찹쌀 4단 생원주</span>
+              <span class="font-mono text-match-1">④</span><span data-i18n="empty.flow_4">{t('empty.flow_4', '야마토고코로 찹쌀 4단 생원주')}</span>
             </li>
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-2">⑤</span><span>유키스즈메·니키타츠·쿄히나 사쿠라히메 효모 비교</span>
+              <span class="font-mono text-match-2">⑤</span><span data-i18n="empty.flow_5">{t('empty.flow_5', '유키스즈메·니키타츠·쿄히나 사쿠라히메 효모 비교')}</span>
             </li>
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-2">⑥</span><span>이시즈치·치요노카메 고급 긴죠로 균형 확인</span>
+              <span class="font-mono text-match-2">⑥</span><span data-i18n="empty.flow_6">{t('empty.flow_6', '이시즈치·치요노카메 고급 긴죠로 균형 확인')}</span>
             </li>
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-3">⑦</span><span>음식과 함께 야마탄마사무네·카제노사토 식중주</span>
+              <span class="font-mono text-match-3">⑦</span><span data-i18n="empty.flow_7">{t('empty.flow_7', '음식과 함께 야마탄마사무네·카제노사토 식중주')}</span>
             </li>
             <li class="grid grid-cols-[1.125rem_1fr] gap-2">
-              <span class="font-mono text-match-3">⑧</span><span>마무리 — 히메바야시 밤 소주</span>
+              <span class="font-mono text-match-3">⑧</span><span data-i18n="empty.flow_8">{t('empty.flow_8', '마무리 · 히메바야시 밤 소주')}</span>
             </li>
           </ol>
         </div>
 
         <div class="border-t border-border pt-4 text-xs leading-relaxed">
-          참가 명칭, 실제 양조장, 개별 제품을 구분했습니다. 개인 점수는 예상 취향이며 공식 분석값이 아닙니다. 공식 상품 목록에 있어도 2026 페스타 제공 및 현 재고는 미확인입니다.
+          <span data-i18n="empty.database_note">{t('empty.database_note', '참가 명칭, 실제 양조장, 개별 제품을 구분했습니다.')}</span>
         </div>
       </div>
     </section>
@@ -346,6 +361,7 @@ const SPEC_KEY = 'text-muted-foreground';
     </footer>
 
     <script>
+      import '../scripts/locale.ts';
       import '../scripts/map.ts';
     </script>
   </body>

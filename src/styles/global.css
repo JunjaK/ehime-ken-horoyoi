@@ -62,52 +62,79 @@
   }
 }
 
-/*
- * Leaflet 이 만드는 DOM 은 Astro/Tailwind 밖이라 여기서 다크로 맞춘다.
- * 이걸 빼면 지도 위 컨트롤·툴팁만 흰색으로 남는다.
- */
 @layer components {
-  .leaflet-container {
+  #map.mapboxgl-map {
+    position: absolute !important;
+    inset: 0;
     background: var(--color-muted);
     font-family: var(--font-sans);
   }
 
-  .leaflet-bar a,
-  .leaflet-bar a:hover {
+  .mapboxgl-ctrl-group {
     background: var(--color-card);
-    color: var(--color-foreground);
-    border-bottom-color: var(--color-border);
+    border: 1px solid var(--color-border);
+    box-shadow: none;
   }
 
-  .leaflet-bar a:hover {
-    background: var(--color-accent);
-  }
-
-  .leaflet-touch .leaflet-bar {
+  .mapboxgl-ctrl-group button {
+    background-color: var(--color-card);
     border-color: var(--color-border);
   }
 
-  .leaflet-tooltip {
-    background: var(--color-card);
-    color: var(--color-card-foreground);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    box-shadow: 0 4px 12px oklch(0 0 0 / 45%);
-    font-size: 12px;
-    font-weight: 500;
-    padding: 6px 10px;
+  .mapboxgl-ctrl-group button:hover {
+    background: var(--color-accent);
   }
 
-  .leaflet-tooltip-top::before {
-    border-top-color: var(--color-border);
+  .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
+    filter: invert(1);
   }
 
-  .leaflet-control-attribution {
-    background: oklch(0.145 0 0 / 75%) !important;
+  .mapboxgl-ctrl-attrib,
+  .mapboxgl-ctrl-attrib.mapboxgl-compact-show {
+    background: oklch(0.145 0 0 / 85%);
     color: var(--color-muted-foreground);
   }
 
-  .leaflet-control-attribution a {
+  .mapboxgl-ctrl-attrib a {
     color: var(--color-muted-foreground);
+  }
+
+  .mapbox-brand-marker {
+    display: grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    place-items: center;
+    border: 2px solid oklch(0.145 0 0 / 75%);
+    border-radius: 9999px;
+    background: var(--marker-color);
+    color: var(--color-background);
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 2px 9px oklch(0 0 0 / 55%);
+    transition: scale 150ms ease, box-shadow 150ms ease;
+    cursor: pointer;
+  }
+
+  .mapbox-brand-marker:hover,
+  .mapbox-brand-marker:focus-visible,
+  .mapbox-brand-marker.is-active {
+    scale: 1.22;
+    box-shadow: 0 0 0 3px var(--color-foreground), 0 4px 12px oklch(0 0 0 / 60%);
+    outline: none;
+  }
+
+  .mapbox-venue-marker {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 2px solid var(--color-foreground);
+    border-radius: 0.45rem;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-jp);
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 2px 10px oklch(0 0 0 / 60%);
   }
 }

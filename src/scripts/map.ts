@@ -1,34 +1,24 @@
-import * as L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { ALL_REGIONS, BREWERIES, VENUE, type BrandGuide as Brewery, type MatchRank } from '../data/breweries.ts';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { ALL_REGIONS, BREWERIES, VENUE, type BrandGuide, type MatchRank } from '../data/breweries.ts';
+import { getLocale, onLocaleChange, uiText } from '../i18n/runtime.ts';
 import { matchesQuery, searchText } from '../lib/search.ts';
 import { spreadPoints, type SpreadPoint } from '../lib/spread.ts';
 
-/** 마커끼리 확보할 최소 화면 간격(px). */
 const MIN_MARKER_GAP = 34;
-
-/**
- * 마커 색의 SSOT 는 global.css 의 @theme 토큰이다.
- * 여기에 값을 복제하면 팔레트를 바꿀 때 지도만 옛 색으로 남는다.
- */
 const theme = getComputedStyle(document.documentElement);
 const token = (name: string) => theme.getPropertyValue(name).trim();
-
 const MATCH_COLOR: Record<MatchRank, string> = {
   1: token('--color-match-1'),
   2: token('--color-match-2'),
   3: token('--color-match-3'),
 };
-const BACKGROUND = token('--color-background');
-const FOREGROUND = token('--color-foreground');
-
-/** 회장 마커의 가상 id. 실제 브랜드 id(1~19)와 겹치지 않는다. */
 const VENUE_ID = 0;
 
 function required<T extends Element>(selector: string): T {
-  const el = document.querySelector<T>(selector);
-  if (!el) throw new Error(`엘리먼트를 찾을 수 없습니다: ${selector}`);
-  return el;
+  const element = document.querySelector<T>(selector);
+  if (!element) throw new Error(`Missing element: ${selector}`);
+  return element;
 }
 
 const mapEl = required<HTMLDivElement>('#map');
@@ -39,180 +29,138 @@ const searchForm = required<HTMLFormElement>('#search-form');
 const noResultsEl = required<HTMLElement>('#no-results');
 const searchStatusEl = required<HTMLElement>('#search-status');
 const mapStatusEl = required<HTMLElement>('#map-status');
-const searchIndex = new Map(BREWERIES.map((b) => [b.id, searchText(b)]));
 const emptyEl = required<HTMLElement>('#empty');
-// 스타일 클래스가 아니라 구조로 잡는다. 클래스는 리디자인 때 갈리고, 셀렉터는 조용히 죽는다.
 const rowEls = Array.from(document.querySelectorAll<HTMLButtonElement>('#list button[data-id]'));
 const detailEls = Array.from(document.querySelectorAll<HTMLElement>('#details article[data-id]'));
+if (rowEls.length === 0 || detailEls.length === 0) throw new Error('Brand list or detail panels are missing');
 
-if (rowEls.length === 0 || detailEls.length === 0) {
-  throw new Error(`목록/상세 엘리먼트를 못 찾음 (rows=${rowEls.length}, details=${detailEls.length})`);
-}
-
-const byId = new Map(BREWERIES.map((b) => [b.id, b]));
-const markers = new Map<number, L.Marker>();
-
+const byId = new Map(BREWERIES.map((brewery) => [brewery.id, brewery]));
+const searchIndex = new Map(BREWERIES.map((brewery) => [brewery.id, searchText(brewery)]));
+const markers = new Map<number, mapboxgl.Marker>();
+const markerElements = new Map<number, HTMLButtonElement>();
 let hoverId: number | null = null;
 let pinId: number | null = null;
 let region: string = ALL_REGIONS;
-
 let searchInput = '';
 let appliedQuery = '';
-const isVisible = (b: Brewery) => (region === ALL_REGIONS || b.region === region)
-  && matchesQuery(searchIndex.get(b.id) ?? '', appliedQuery);
+let mapReady = false;
 
-function markerIcon(b: Brewery, active: boolean) {
-  const size = active ? 32 : 25;
-  const color = MATCH_COLOR[b.match];
-  // 밝은 원 위에 어두운 숫자 (흰 글자는 이 명도대에서 대비가 안 나온다).
-  const html =
-    `<div style="width:${size}px;height:${size}px;border-radius:50%;` +
-    `background:${active ? FOREGROUND : color};color:${BACKGROUND};` +
-    `font:600 ${active ? 13 : 11.5}px/1 var(--font-sans);font-variant-numeric:tabular-nums;` +
-    `display:flex;align-items:center;justify-content:center;` +
-    `box-shadow:0 ${active ? '4px 14px' : '2px 6px'} oklch(0 0 0 / 55%);` +
-    `border:2px solid ${active ? color : BACKGROUND};transition:all .14s">${b.id}</div>`;
+const isVisible = (brewery: BrandGuide) =>
+  (region === ALL_REGIONS || brewery.region === region) &&
+  matchesQuery(searchIndex.get(brewery.id) ?? '', appliedQuery);
 
-  return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+function markerElement(brewery: BrandGuide) {
+  const element = document.createElement('button');
+  element.type = 'button';
+  element.className = 'mapbox-brand-marker';
+  element.textContent = String(brewery.id);
+  element.dataset.testid = `guide-marker-select-${brewery.id}`;
+  element.style.setProperty('--marker-color', MATCH_COLOR[brewery.match]);
+  element.title = `${brewery.ko} · ${brewery.ja}`;
+  element.addEventListener('mouseenter', () => { hoverId = brewery.id; render(); });
+  element.addEventListener('mouseleave', () => { hoverId = null; render(); });
+  element.addEventListener('focus', () => { hoverId = brewery.id; render(); });
+  element.addEventListener('blur', () => { hoverId = null; render(); });
+  element.addEventListener('click', () => pin(brewery.id));
+  return element;
 }
 
-const map = L.map(mapEl, { zoomControl: true, scrollWheelZoom: true, minZoom: 7, maxZoom: 14 });
+const accessToken = import.meta.env.PUBLIC_MAPBOX_TOKEN?.trim();
+if (!accessToken?.startsWith('pk.')) {
+  mapStatusEl.textContent = uiText(getLocale(), 'map.error');
+  throw new Error('PUBLIC_MAPBOX_TOKEN is missing');
+}
+mapboxgl.accessToken = accessToken;
+const map = new mapboxgl.Map({
+  container: mapEl,
+  style: 'mapbox://styles/mapbox/dark-v11',
+  center: [132.86, 33.65],
+  zoom: 7.25,
+  minZoom: 6,
+  maxZoom: 14,
+  projection: 'mercator',
+  attributionControl: false,
+});
+map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-left');
+map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
-const mapboxToken = import.meta.env.PUBLIC_MAPBOX_TOKEN?.trim();
-if (!mapboxToken?.startsWith('pk.')) {
-  mapStatusEl.textContent = '지도를 불러올 수 없습니다. 브랜드 목록과 상세 정보는 이용할 수 있습니다.';
-} else {
-  const tiles = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/512/{z}/{x}/{y}{r}?access_token=${encodeURIComponent(mapboxToken)}`, {
-    attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> <a href="https://apps.mapbox.com/feedback/">지도 오류 제보</a>',
-    tileSize: 512,
-    zoomOffset: -1,
-    maxZoom: 18,
-  });
-  let tileFailed = false;
-  let loadTimer: ReturnType<typeof setTimeout> | undefined;
-  const showError = () => {
-    mapStatusEl.hidden = false;
-    mapStatusEl.textContent = '배경 지도를 불러오지 못했습니다. 브랜드 목록과 상세 정보는 이용할 수 있습니다.';
-  };
-  tiles.on('loading', () => {
-    clearTimeout(loadTimer);
-    tileFailed = false;
-    mapStatusEl.hidden = false;
-    mapStatusEl.textContent = '지도를 불러오는 중…';
-    loadTimer = setTimeout(showError, 12_000);
-  });
-  tiles.on('tileerror', () => {
-    tileFailed = true;
-    showError();
-  });
-  tiles.on('load', () => {
-    clearTimeout(loadTimer);
-    mapStatusEl.hidden = !tileFailed;
-  });
-  tiles.addTo(map);
+for (const brewery of BREWERIES) {
+  const element = markerElement(brewery);
+  const marker = new mapboxgl.Marker({ element, anchor: 'center' })
+    .setLngLat([brewery.lng, brewery.lat])
+    .addTo(map);
+  markers.set(brewery.id, marker);
+  markerElements.set(brewery.id, element);
 }
 
-for (const b of BREWERIES) {
-  const marker = L.marker([b.lat, b.lng], { icon: markerIcon(b, false), riseOnHover: true, keyboard: false })
-    .addTo(map)
-    .bindTooltip(`${b.ko} · ${b.ja}`, { direction: 'top', offset: [0, -14], opacity: 0.96 });
+const venueElement = document.createElement('div');
+venueElement.className = 'mapbox-venue-marker';
+venueElement.textContent = '祭';
+const venueMarker = new mapboxgl.Marker({ element: venueElement, anchor: 'center' })
+  .setLngLat([VENUE.lng, VENUE.lat])
+  .addTo(map);
 
-  marker.on('mouseover', () => {
-    hoverId = b.id;
-    render();
-  });
-  marker.on('mouseout', () => {
-    hoverId = null;
-    render();
-  });
-  marker.on('click', () => pin(b.id));
-
-  markers.set(b.id, marker);
-}
-
-L.marker([VENUE.lat, VENUE.lng], {
-  zIndexOffset: -600,
-  icon: L.divIcon({
-    html:
-      `<div style="width:30px;height:30px;border-radius:50%;background:${FOREGROUND};border:3px solid ${BACKGROUND};` +
-      `box-shadow:0 3px 10px oklch(0 0 0 / 55%);display:flex;align-items:center;justify-content:center;` +
-      `color:${BACKGROUND};font:600 13px/1 var(--font-jp)">祭</div>`,
-    className: '',
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-  }),
-})
-  .addTo(map)
-  .bindTooltip(`<b>${VENUE.name}</b><br/>${VENUE.addr}<br/>${VENUE.when}`, {
-    direction: 'top',
-    offset: [0, -16],
-    opacity: 0.97,
-  });
-
-/** 겹친 마커를 밀어낸다. 매번 원래 좌표에서 다시 계산하므로 줌을 반복해도 누적 오차가 없다. */
 function spreadMarkers() {
-  const zoom = map.getZoom();
-  const points: (SpreadPoint & { id: number })[] = BREWERIES.map((b) => {
-    const { x, y } = map.project([b.lat, b.lng], zoom);
-    return { id: b.id, x, y };
+  if (!mapReady) return;
+  const points: (SpreadPoint & { id: number })[] = BREWERIES.map((brewery) => {
+    const point = map.project([brewery.lng, brewery.lat]);
+    return { id: brewery.id, x: point.x, y: point.y };
   });
-
-  const venue = map.project([VENUE.lat, VENUE.lng], zoom);
+  const venue = map.project([VENUE.lng, VENUE.lat]);
   points.push({ id: VENUE_ID, x: venue.x, y: venue.y, fixed: true });
-
   spreadPoints(points, MIN_MARKER_GAP);
-
   for (const point of points) {
-    markers.get(point.id)?.setLatLng(map.unproject([point.x, point.y], zoom));
+    const position = map.unproject([point.x, point.y]);
+    if (point.id === VENUE_ID) venueMarker.setLngLat(position);
+    else markers.get(point.id)?.setLngLat(position);
   }
 }
 
 function render() {
-  // 클릭 선택은 지도 이동 중 다른 마커의 호버보다 우선한다.
+  const locale = getLocale();
   const activeId = pinId ?? hoverId;
-
   let visibleCount = 0;
   for (const row of rowEls) {
     const id = Number(row.dataset.id);
-    const b = byId.get(id);
-    const shown = b !== undefined && isVisible(b);
+    const brewery = byId.get(id);
+    const shown = brewery !== undefined && isVisible(brewery);
     row.hidden = !shown;
     row.setAttribute('aria-current', String(id === activeId));
-    if (shown) visibleCount++;
+    if (shown) visibleCount += 1;
   }
   countEl.textContent = String(visibleCount);
   noResultsEl.hidden = visibleCount !== 0;
-  searchStatusEl.textContent = appliedQuery ? `「${appliedQuery}」 · ${visibleCount}개 브랜드` : `지역 내 ${visibleCount}개 브랜드 · Enter 또는 검색으로 적용`;
-
-  for (const detail of detailEls) {
-    detail.hidden = Number(detail.dataset.id) !== activeId;
-  }
+  searchStatusEl.textContent = appliedQuery
+    ? uiText(getLocale(), 'search.results', { query: appliedQuery, count: visibleCount })
+    : uiText(getLocale(), 'search.ready', { count: visibleCount });
+  for (const detail of detailEls) detail.hidden = Number(detail.dataset.id) !== activeId;
   emptyEl.hidden = activeId !== null;
 
-  for (const b of BREWERIES) {
-    const marker = markers.get(b.id);
-    if (!marker) continue;
-
-    const shown = isVisible(b);
-    if (shown && !map.hasLayer(marker)) marker.addTo(map);
-    if (!shown && map.hasLayer(marker)) marker.remove();
-    if (!shown) continue;
-
-    marker.setIcon(markerIcon(b, b.id === activeId));
-    marker.setZIndexOffset(b.id === activeId ? 1200 : 0);
-    marker.getElement()?.setAttribute('data-testid', `guide-marker-select-${b.id}`);
+  for (const brewery of BREWERIES) {
+    const element = markerElements.get(brewery.id);
+    if (!element) continue;
+    element.hidden = !isVisible(brewery);
+    element.title = locale === 'ko' ? `${brewery.ko} · ${brewery.ja}` : `${brewery.ja}${brewery.brand.nameKana ? ` · ${brewery.brand.nameKana}` : ''}`;
+    element.setAttribute('role', 'button');
+    element.setAttribute('aria-label', element.title);
+    element.classList.toggle('is-active', brewery.id === activeId);
+    element.style.zIndex = brewery.id === activeId ? '2' : '1';
   }
+  venueElement.title = `${uiText(locale, 'map.venue')}\n${VENUE.addr}\n${VENUE.when}`;
+  const zoomIn = mapEl.querySelector<HTMLElement>('.mapboxgl-ctrl-zoom-in');
+  const zoomOut = mapEl.querySelector<HTMLElement>('.mapboxgl-ctrl-zoom-out');
+  zoomIn?.setAttribute('aria-label', uiText(locale, 'map.zoom_in'));
+  zoomIn?.setAttribute('title', uiText(locale, 'map.zoom_in'));
+  zoomOut?.setAttribute('aria-label', uiText(locale, 'map.zoom_out'));
+  zoomOut?.setAttribute('title', uiText(locale, 'map.zoom_out'));
 }
 
-/** 같은 항목을 다시 누르면 선택이 풀린다 (호버가 없는 터치에서 유일한 취소 수단). */
 function pin(id: number) {
   const alreadyPinned = pinId === id;
   pinId = alreadyPinned ? null : id;
-  // 터치에서 한 번 발생하고 끝나는 mouseover 가 남아 있으면 취소가 먹지 않는다.
   hoverId = null;
-
-  const b = byId.get(id);
-  if (!alreadyPinned && b) map.flyTo([b.lat, b.lng], Math.max(map.getZoom(), 10), { duration: 0.6 });
+  const brewery = byId.get(id);
+  if (!alreadyPinned && brewery) map.flyTo({ center: [brewery.lng, brewery.lat], zoom: Math.max(map.getZoom(), 10), duration: 600 });
   render();
 }
 
@@ -222,54 +170,28 @@ function clearSelection() {
   render();
 }
 
-for (const button of document.querySelectorAll<HTMLButtonElement>('[data-clear]')) {
-  button.addEventListener('click', clearSelection);
-}
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') clearSelection();
-});
-
-for (const row of rowEls) {
-  const id = Number(row.dataset.id);
-  row.addEventListener('mouseenter', () => {
-    hoverId = id;
-    render();
-  });
-  row.addEventListener('mouseleave', () => {
-    hoverId = null;
-    render();
-  });
-  // 키보드 사용자에게는 포커스가 마우스오버 역할을 한다.
-  row.addEventListener('focus', () => {
-    hoverId = id;
-    render();
-  });
-  row.addEventListener('blur', () => {
-    hoverId = null;
-    render();
-  });
-  row.addEventListener('click', () => pin(id));
-}
-
-regionEl.addEventListener('change', () => {
-  region = regionEl.value;
-  applyFilters();
-});
-
 function applyFilters() {
-  // 필터 밖으로 나간 양조장이 상세 패널에 남아 있으면 목록·지도와 어긋난다.
   const survives = (id: number | null) => {
     if (id === null) return false;
-    const b = byId.get(id);
-    return b !== undefined && isVisible(b);
+    const brewery = byId.get(id);
+    return brewery !== undefined && isVisible(brewery);
   };
   if (!survives(hoverId)) hoverId = null;
   if (!survives(pinId)) pinId = null;
-
   render();
 }
 
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-clear]')) button.addEventListener('click', clearSelection);
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') clearSelection(); });
+for (const row of rowEls) {
+  const id = Number(row.dataset.id);
+  row.addEventListener('mouseenter', () => { hoverId = id; render(); });
+  row.addEventListener('mouseleave', () => { hoverId = null; render(); });
+  row.addEventListener('focus', () => { hoverId = id; render(); });
+  row.addEventListener('blur', () => { hoverId = null; render(); });
+  row.addEventListener('click', () => pin(id));
+}
+regionEl.addEventListener('change', () => { region = regionEl.value; applyFilters(); });
 searchEl.addEventListener('input', () => { searchInput = searchEl.value; });
 searchForm.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -285,20 +207,26 @@ searchForm.addEventListener('reset', (event) => {
   applyFilters();
 });
 
-map.on('zoomend', () => {
+map.on('load', () => {
+  mapReady = true;
+  mapStatusEl.hidden = true;
+  const bounds = new mapboxgl.LngLatBounds();
+  for (const brewery of BREWERIES) bounds.extend([brewery.lng, brewery.lat]);
+  map.fitBounds(bounds, { padding: 44, duration: 0 });
   spreadMarkers();
   render();
+  const zoomIn = mapEl.querySelector<HTMLElement>('.mapboxgl-ctrl-zoom-in');
+  const zoomOut = mapEl.querySelector<HTMLElement>('.mapboxgl-ctrl-zoom-out');
+  zoomIn?.setAttribute('data-testid', 'guide-map-zoom-in');
+  zoomOut?.setAttribute('data-testid', 'guide-map-zoom-out');
 });
-
-map.fitBounds(L.latLngBounds(BREWERIES.map((b) => [b.lat, b.lng])).pad(0.14));
-spreadMarkers();
+map.on('moveend', spreadMarkers);
+map.on('error', (event) => {
+  const message = event.error?.message ?? '';
+  if (/401|403|token|style/i.test(message)) {
+    mapStatusEl.hidden = false;
+    mapStatusEl.textContent = uiText(getLocale(), 'map.error');
+  }
+});
+onLocaleChange(() => render());
 render();
-
-for (const [selector, testId, label] of [
-  ['.leaflet-control-zoom-in', 'guide-map-zoom-in', '지도 확대'],
-  ['.leaflet-control-zoom-out', 'guide-map-zoom-out', '지도 축소'],
-]) {
-  const control = mapEl.querySelector<HTMLElement>(selector);
-  control?.setAttribute('data-testid', testId);
-  control?.setAttribute('aria-label', label);
-}

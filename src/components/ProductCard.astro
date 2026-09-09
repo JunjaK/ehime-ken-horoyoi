@@ -1,39 +1,43 @@
 ---
 import type { Product } from '../data/types.ts';
 import Sources from './Sources.astro';
+import { ko as koMessages } from '../i18n/locales/ko.ts';
+import type { MessageKey } from '../i18n/runtime.ts';
 interface Props { product: Product; brandName: string; related: boolean }
 const { product: p, brandName, related } = Astro.props;
+const t = (key: MessageKey, fallback: string, variables: Record<string, number | string> = {}) => (koMessages[key] ?? fallback).replace(/\{(\w+)\}/g, (match, name: string) => String(variables[name] ?? match));
 const percent = (value: number | string | null) => typeof value === 'number' ? `${value}%` : value === null ? null : value.includes('%') ? value : `${value}%`;
 const specs = [
-  { label: '도수', value: percent(p.alcohol) },
+  { key: 'product.alcohol', label: t('product.alcohol', '도수'), value: percent(p.alcohol) },
   ...(p.kind === 'sake' ? [
-    { label: '정미율', value: percent(p.polishingRatio) },
-    { label: '주미', value: p.rice?.join(' · ') },
-    { label: '일본주도', value: typeof p.nihonshudo === 'number' && p.nihonshudo > 0 ? `+${p.nihonshudo}` : p.nihonshudo },
-    { label: '산도', value: p.acidity },
-    { label: '아미노산도', value: p.aminoAcidity },
-    { label: '효모', value: p.yeast },
+    { key: 'product.polishing', label: t('product.polishing', '정미율'), value: percent(p.polishingRatio) },
+    { key: 'product.rice', label: t('product.rice', '주미'), value: p.rice?.join(' · ') },
+    { key: 'product.nihonshudo', label: t('product.nihonshudo', '일본주도'), value: typeof p.nihonshudo === 'number' && p.nihonshudo > 0 ? `+${p.nihonshudo}` : p.nihonshudo },
+    { key: 'product.acidity', label: t('product.acidity', '산도'), value: p.acidity },
+    { key: 'product.amino', label: t('product.amino', '아미노산도'), value: p.aminoAcidity },
+    { key: 'product.yeast', label: t('product.yeast', '효모'), value: p.yeast },
   ] : [
-    { label: '원료', value: p.ingredients.join(' · ') },
-    { label: '증류', value: p.distillation },
+    { key: 'product.ingredients', label: t('product.ingredients', '원료'), value: p.ingredients.join(' · ') },
+    { key: 'product.distillation', label: t('product.distillation', '증류'), value: p.distillation },
   ]),
 ].filter((spec) => spec.value !== null && spec.value !== undefined);
+const availabilityKey = { 定番: 'product.regular', 季節限定: 'product.seasonal', 数量限定: 'product.limited' } as const;
 ---
 <section class="min-w-0 rounded-xl border border-border bg-card p-4" data-product-id={p.id} data-testid={`guide-product-card-${p.id}`}>
-  {related && <p class="mb-2 text-xs text-match-2">같은 양조장의 다른 브랜드 · {brandName}</p>}
-  <p class="text-xs text-muted-foreground">{p.nameKo}</p>
+  {related && <p class="mb-2 text-xs text-match-2" data-l10n-ko={t('product.related', '같은 양조장의 다른 브랜드 · {brand}', { brand: brandName })} data-l10n-en={`Another brand from the same brewery · ${brandName}`} data-l10n-jp={`同じ酒蔵の別銘柄 · ${brandName}`}>{t('product.related', '같은 양조장의 다른 브랜드 · {brand}', { brand: brandName })}</p>}
+  <p class="text-xs text-muted-foreground" data-l10n-ko={p.nameKo} data-l10n-en="" data-l10n-jp="">{p.nameKo}</p>
   <h4 class="mt-1 break-words text-base font-semibold" lang="ja">{p.nameJa}</h4>
   {p.nameKana && <p class="mt-1 text-xs text-muted-foreground" lang="ja">{p.nameKana}</p>}
   <div class="mt-3 flex flex-wrap gap-1.5 text-[11px]">
-    <span class="rounded border border-border px-2 py-1">{p.kind === 'shochu' ? '증류주 · ' : ''}{p.category}</span>
+    <span class="rounded border border-border px-2 py-1"><span data-i18n={p.kind === 'shochu' ? 'product.shochu' : undefined}>{p.kind === 'shochu' ? t('product.shochu', '증류주 · ') : ''}</span>{p.category}</span>
     {p.kind === 'sake' && p.attributes.map((attribute) => <span class="rounded border border-border px-2 py-1" lang="ja">{attribute}</span>)}
-    {p.availability !== '不明' && <span class="rounded border border-border px-2 py-1">{{ 定番: '정규 제품', 季節限定: '계절 한정', 数量限定: '수량 한정' }[p.availability]}</span>}
+    {p.availability !== '不明' && <span data-i18n={availabilityKey[p.availability]} class="rounded border border-border px-2 py-1">{{ 定番: t('product.regular', '정규 제품'), 季節限定: t('product.seasonal', '계절 한정'), 数量限定: t('product.limited', '수량 한정') }[p.availability]}</span>}
   </div>
-  <p class="mt-3 text-xs leading-relaxed text-muted-foreground">{p.descriptionKo}</p>
+  <p class="mt-3 text-xs leading-relaxed text-muted-foreground" data-l10n-ko={p.descriptionKo} data-l10n-en={`A ${p.category} officially listed under this brewery's product information. Only sourced specifications are shown below.`} data-l10n-jp={`蔵元の商品情報に掲載されている${p.category}です。下記には出典で確認できた仕様のみ表示しています。`}>{p.descriptionKo}</p>
   {specs.length > 0 && <dl class="mt-4 grid grid-cols-[5rem_1fr] gap-x-3 gap-y-2 text-xs">
-    {specs.map((spec) => <><dt class="text-muted-foreground">{spec.label}</dt><dd class="break-words tabular-nums">{spec.value}</dd></>)}
+    {specs.map((spec) => <><dt data-i18n={spec.key} class="text-muted-foreground">{spec.label}</dt><dd class="break-words tabular-nums">{spec.value}</dd></>)}
   </dl>}
-  <p class="mt-4 text-[11px] leading-relaxed text-muted-foreground">사양 자료 {p.specAsOf}{p.batch && ` · ${p.batch}`}<br />2026 페스타 제공 {p.festivalOffering === 'unknown' ? '미확인' : '공식 확인'} · 현재 재고 미확인</p>
-  {p.notes.map((note) => <p class="mt-2 text-xs leading-relaxed text-match-2">{note}</p>)}
+  <p class="mt-4 whitespace-pre-line text-[11px] leading-relaxed text-muted-foreground" data-l10n-ko={`사양 자료 ${p.specAsOf}${p.batch ? ` · ${p.batch}` : ''}\n2026 페스타 제공 ${p.festivalOffering === 'unknown' ? '미확인' : '공식 확인'} · 현재 재고 미확인`} data-l10n-en={`Specifications dated ${p.specAsOf}${p.batch ? ` · ${p.batch}` : ''}\n2026 event serving: ${p.festivalOffering === 'unknown' ? 'unconfirmed' : 'officially confirmed'} · current stock unconfirmed`} data-l10n-jp={`仕様資料 ${p.specAsOf}${p.batch ? ` · ${p.batch}` : ''}\n2026年フェスタ提供 ${p.festivalOffering === 'unknown' ? '未確認' : '公式確認済み'} · 現在庫未確認`}>사양 자료 {p.specAsOf}{p.batch && ` · ${p.batch}`}<br />2026 페스타 제공 {p.festivalOffering === 'unknown' ? '미확인' : '공식 확인'} · 현재 재고 미확인</p>
+  {p.notes.map((note) => <p class="mt-2 text-xs leading-relaxed text-match-2" data-l10n-ko={note} data-l10n-en="Conflicting or batch-specific details in the cited sources are left unconfirmed." data-l10n-jp="出典内で一致しない情報やロット固有の情報は未確認としています。">{note}</p>)}
   <Sources sources={p.sources} id={p.id} />
 </section>

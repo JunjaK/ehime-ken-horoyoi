@@ -1,18 +1,23 @@
 ---
 import type { SourceRef } from '../data/types.ts';
+import { ko as koMessages } from '../i18n/locales/ko.ts';
+import type { MessageKey } from '../i18n/runtime.ts';
 interface Props { sources: SourceRef[]; id: string }
 const { sources, id } = Astro.props;
-const labels: Record<SourceRef['type'], string> = {
-  'brewery-official': '제조사 공식', 'ehime-sake-association': '사케 조합',
-  government: '정부', 'official-tourism': '공식 관광', retailer: '판매처', other: '기타',
+const t = (key: MessageKey, fallback: string, variables: Record<string, number | string> = {}) => (koMessages[key] ?? fallback).replace(/\{(\w+)\}/g, (match, name: string) => String(variables[name] ?? match));
+const labels: Record<SourceRef['type'], { key: MessageKey; ko: string }> = {
+  'brewery-official': { key: 'source.brewery_official', ko: '제조사 공식' },
+  'ehime-sake-association': { key: 'source.ehime_sake_association', ko: '사케 조합' },
+  government: { key: 'source.government', ko: '정부' }, 'official-tourism': { key: 'source.official_tourism', ko: '공식 관광' },
+  retailer: { key: 'source.retailer', ko: '판매처' }, other: { key: 'source.other', ko: '기타' },
 };
 ---
 <details class="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
-  <summary data-testid={`guide-sources-toggle-${id}`} class="w-fit cursor-pointer rounded-md border border-border px-3 py-2 focus-visible:outline-2">출처 · {sources.length}</summary>
+  <summary data-i18n="source.heading" data-i18n-vars={JSON.stringify({ count: sources.length })} data-testid={`guide-sources-toggle-${id}`} class="w-fit cursor-pointer rounded-md border border-border px-3 py-2 focus-visible:outline-2">{t('source.heading', '출처 · {count}', { count: sources.length })}</summary>
   <ul class="mt-3 space-y-3 break-words">
     {sources.map((source, index) => <li>
       <a data-testid={`guide-source-open-${id}-${index}`} href={source.url} target="_blank" rel="noreferrer" class="underline underline-offset-4 hover:text-foreground">{source.title}</a>
-      <span class="mt-1 block">{labels[source.type]} · 확인 {source.accessedAt}</span>
+      <span class="mt-1 block"><span data-i18n={labels[source.type].key}>{t(labels[source.type].key, labels[source.type].ko)}</span> · <span data-l10n-ko={`확인 ${source.accessedAt}`} data-l10n-en={`Checked ${source.accessedAt}`} data-l10n-jp={`確認日 ${source.accessedAt}`}>확인 {source.accessedAt}</span></span>
     </li>)}
   </ul>
 </details>
