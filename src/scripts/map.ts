@@ -121,7 +121,7 @@ new mapboxgl.Marker({ element: venueElement, anchor: 'center' })
 
 function resizeMarkers() {
   const zoomProgress = Math.max(0, Math.min(1, (map.getZoom() - 6) / 8));
-  mapEl.style.setProperty('--marker-size', `${36 - zoomProgress * 12}px`);
+  mapEl.style.setProperty('--marker-size', `${24 + zoomProgress * 12}px`);
 }
 
 function render() {
