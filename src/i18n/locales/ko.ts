@@ -57,7 +57,7 @@ export const ko = {
   'map.venue': '행사장 · 조자야마 공원 관리광장',
   'map.zoom_in': '확대',
   'map.zoom_out': '축소',
-  'map.note': '지역 대표점 · 건물 위치 아님\n겹친 번호는 가독성을 위해 이동',
+  'map.note': '지역 대표점 · 건물 위치 아님',
   'match.first': '★ 취향 최우선',
   'match.second': '다음 우선순위',
   'match.third': '후순위 · 확인 필요',

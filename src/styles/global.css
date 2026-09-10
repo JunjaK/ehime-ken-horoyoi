@@ -112,8 +112,9 @@
 
   .mapbox-brand-marker {
     display: grid;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: var(--marker-size, 36px);
+    height: var(--marker-size, 36px);
+    touch-action: manipulation;
     place-items: center;
     border: 2px solid oklch(0.145 0 0 / 75%);
     border-radius: 9999px;
@@ -126,7 +127,6 @@
     cursor: pointer;
   }
 
-  .mapbox-brand-marker:hover,
   .mapbox-brand-marker:focus-visible {
     scale: 1.22;
     box-shadow: 0 0 0 3px var(--color-foreground), 0 4px 12px oklch(0 0 0 / 60%);

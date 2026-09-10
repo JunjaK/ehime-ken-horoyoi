@@ -3,10 +3,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { ALL_REGIONS, BREWERIES, VENUE, type BrandGuide, type MatchRank } from '../data/breweries.ts';
 import { getLocale, onLocaleChange, uiText, type MessageKey } from '../i18n/runtime.ts';
 import { matchesQuery, searchText } from '../lib/search.ts';
-import { spreadPoints, type SpreadPoint } from '../lib/spread.ts';
 import { DEFAULT_TASTE_POINT, profileFromPoint, rankedProfiles, tasteQuadrant, tasteTier, type TasteLevel, type TastePoint, type TasteQuadrant } from '../lib/taste-ranking.ts';
 
-const MIN_MARKER_GAP = 34;
 const theme = getComputedStyle(document.documentElement);
 const token = (name: string) => theme.getPropertyValue(name).trim();
 const MATCH_COLOR: Record<MatchRank, string> = {
@@ -14,7 +12,6 @@ const MATCH_COLOR: Record<MatchRank, string> = {
   2: token('--color-match-2'),
   3: token('--color-match-3'),
 };
-const VENUE_ID = 0;
 const QUADRANT_KEYS = {
   kunshu: 'taste-selector.kunshu', jukushu: 'taste-selector.jukushu', soshu: 'taste-selector.soshu',
   junshu: 'taste-selector.junshu', balanced: 'taste-selector.balanced',
@@ -49,14 +46,11 @@ const rankingProfiles = BREWERIES.map((brewery) => ({
   ...brewery,
   tastePenalty: brewery.products.length > 0 && brewery.products.every((product) => product.kind === 'shochu') ? 40 : 0,
 }));
-const markers = new Map<number, mapboxgl.Marker>();
 const markerElements = new Map<number, HTMLButtonElement>();
-let hoverId: number | null = null;
 let pinId: number | null = null;
 let region: string = ALL_REGIONS;
 let searchInput = '';
 let appliedQuery = '';
-let mapReady = false;
 
 function tasteLevel(value: string | null, fallback: TasteLevel): TasteLevel {
   const parsed = Number(value);
@@ -87,10 +81,6 @@ function markerElement(brewery: BrandGuide) {
   element.dataset.testid = `guide-marker-select-${brewery.id}`;
   element.style.setProperty('--marker-color', MATCH_COLOR[brewery.match]);
   element.title = `${brewery.ko} · ${brewery.ja}`;
-  element.addEventListener('mouseenter', () => { hoverId = brewery.id; render(); });
-  element.addEventListener('mouseleave', () => { hoverId = null; render(); });
-  element.addEventListener('focus', () => { hoverId = brewery.id; render(); });
-  element.addEventListener('blur', () => { hoverId = null; render(); });
   element.addEventListener('click', () => pin(brewery.id, true));
   return element;
 }
@@ -116,42 +106,32 @@ map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right
 
 for (const brewery of BREWERIES) {
   const element = markerElement(brewery);
-  const marker = new mapboxgl.Marker({ element, anchor: 'center' })
+  new mapboxgl.Marker({ element, anchor: 'center' })
     .setLngLat([brewery.lng, brewery.lat])
     .addTo(map);
-  markers.set(brewery.id, marker);
   markerElements.set(brewery.id, element);
 }
 
 const venueElement = document.createElement('div');
 venueElement.className = 'mapbox-venue-marker';
 venueElement.textContent = '祭';
-const venueMarker = new mapboxgl.Marker({ element: venueElement, anchor: 'center' })
+new mapboxgl.Marker({ element: venueElement, anchor: 'center' })
   .setLngLat([VENUE.lng, VENUE.lat])
   .addTo(map);
 
-function spreadMarkers() {
-  if (!mapReady) return;
-  const points: (SpreadPoint & { id: number })[] = BREWERIES.map((brewery) => {
-    const point = map.project([brewery.lng, brewery.lat]);
-    return { id: brewery.id, x: point.x, y: point.y };
-  });
-  const venue = map.project([VENUE.lng, VENUE.lat]);
-  points.push({ id: VENUE_ID, x: venue.x, y: venue.y, fixed: true });
-  spreadPoints(points, MIN_MARKER_GAP);
-  for (const point of points) {
-    const position = map.unproject([point.x, point.y]);
-    if (point.id === VENUE_ID) venueMarker.setLngLat(position);
-    else markers.get(point.id)?.setLngLat(position);
-  }
+function resizeMarkers() {
+  const zoomProgress = Math.max(0, Math.min(1, (map.getZoom() - 6) / 8));
+  mapEl.style.setProperty('--marker-size', `${36 - zoomProgress * 12}px`);
 }
 
 function render() {
   const locale = getLocale();
-  const activeId = pinId ?? hoverId;
+  const activeId = pinId;
   const ranking = rankedProfiles(rankingProfiles, tastePoint);
   const rankById = new Map(ranking.map((brewery, index) => [brewery.id, index + 1]));
-  listEl.append(...ranking.map((brewery) => rowEls.find((row) => Number(row.dataset.id) === brewery.id)).filter((row): row is HTMLButtonElement => row !== undefined));
+  const orderedRows = ranking.map((brewery) => rowEls.find((row) => Number(row.dataset.id) === brewery.id))
+    .filter((row): row is HTMLButtonElement => row !== undefined);
+  if (orderedRows.some((row, index) => listEl.children[index] !== row)) listEl.append(...orderedRows);
   let visibleCount = 0;
   for (const row of rowEls) {
     const id = Number(row.dataset.id);
@@ -246,7 +226,6 @@ function revealListRow(id: number) {
 function pin(id: number, fromMap = false) {
   const alreadyPinned = pinId === id;
   pinId = alreadyPinned ? null : id;
-  hoverId = null;
   const brewery = byId.get(id);
   if (!alreadyPinned && brewery) map.flyTo({ center: [brewery.lng, brewery.lat], zoom: Math.max(map.getZoom(), 10), duration: 600 });
   render();
@@ -255,7 +234,6 @@ function pin(id: number, fromMap = false) {
 
 function clearSelection() {
   pinId = null;
-  hoverId = null;
   render();
 }
 
@@ -265,7 +243,6 @@ function applyFilters() {
     const brewery = byId.get(id);
     return brewery !== undefined && isVisible(brewery);
   };
-  if (!survives(hoverId)) hoverId = null;
   if (!survives(pinId)) pinId = null;
   render();
 }
@@ -274,10 +251,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-clear]'
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') clearSelection(); });
 for (const row of rowEls) {
   const id = Number(row.dataset.id);
-  row.addEventListener('mouseenter', () => { hoverId = id; render(); });
-  row.addEventListener('mouseleave', () => { hoverId = null; render(); });
-  row.addEventListener('focus', () => { hoverId = id; render(); });
-  row.addEventListener('blur', () => { hoverId = null; render(); });
   row.addEventListener('click', () => pin(id));
 }
 regionEl.addEventListener('change', () => { region = regionEl.value; applyFilters(); });
@@ -303,7 +276,6 @@ for (const cell of tasteCellEls) {
     };
     localStorage.setItem('ehime-taste-v2-row', String(tastePoint.row));
     localStorage.setItem('ehime-taste-v2-column', String(tastePoint.column));
-    hoverId = null;
     render();
   });
 }
@@ -311,24 +283,23 @@ tasteResetEl.addEventListener('click', () => {
   tastePoint = { ...DEFAULT_TASTE_POINT };
   localStorage.removeItem('ehime-taste-v2-row');
   localStorage.removeItem('ehime-taste-v2-column');
-  hoverId = null;
   render();
 });
 
 map.on('load', () => {
-  mapReady = true;
   mapStatusEl.hidden = true;
   const bounds = new mapboxgl.LngLatBounds();
   for (const brewery of BREWERIES) bounds.extend([brewery.lng, brewery.lat]);
   map.fitBounds(bounds, { padding: 44, duration: 0 });
-  spreadMarkers();
+  resizeMarkers();
   render();
   const zoomIn = mapEl.querySelector<HTMLElement>('.mapboxgl-ctrl-zoom-in');
   const zoomOut = mapEl.querySelector<HTMLElement>('.mapboxgl-ctrl-zoom-out');
   zoomIn?.setAttribute('data-testid', 'guide-map-zoom-in');
   zoomOut?.setAttribute('data-testid', 'guide-map-zoom-out');
 });
-map.on('moveend', spreadMarkers);
+map.on('zoom', resizeMarkers);
+resizeMarkers();
 map.on('error', (event) => {
   const message = event.error?.message ?? '';
   if (/401|403|token|style/i.test(message)) {

@@ -29,7 +29,7 @@ export const en: Record<keyof typeof ko, string> = {
   'search.ready': 'Showing {count} brands.', 'search.results': '{count} results for “{query}”', 'search.none': 'No results. Try another search or region.',
   'map.label': 'Approximate locations of participating breweries', 'map.loading': 'Loading map…', 'map.error': 'The Mapbox map could not be loaded.',
   'map.venue': 'Venue · Shiroyama Park Management Plaza', 'map.zoom_in': 'Zoom in', 'map.zoom_out': 'Zoom out',
-  'map.note': 'Representative locality, not a building location\nOverlapping markers are shifted for readability',
+  'map.note': 'Representative locality, not a building location',
   'match.first': '★ Top match', 'match.second': 'Next priority', 'match.third': 'Lower priority · verify',
   'detail.clear': 'Clear selection', 'detail.clear_title': 'Clear selection (Esc)', 'detail.personal': 'Personal tasting guide · not an official specification',
   'detail.personal_note': 'This keeps the original personal tasting notes. Product names, awards, and brewing claims in those notes were not separately verified, so prefer the sourced product details below.',

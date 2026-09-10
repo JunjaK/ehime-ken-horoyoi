@@ -28,7 +28,7 @@ export const jp: Record<keyof typeof ko, string> = {
   'search.prompt': '入力後にEnterまたは検索を押してください。', 'search.ready': '{count}銘柄を表示しています。', 'search.results': '「{query}」の検索結果 {count}件', 'search.none': '該当する銘柄がありません。検索語または地域を変えてください。',
   'map.label': '参加銘柄の酒蔵のおおよその位置', 'map.loading': '地図を読み込んでいます…', 'map.error': 'Mapboxの地図を読み込めませんでした。',
   'map.venue': '会場 · 城山公園 管理広場', 'map.zoom_in': '拡大', 'map.zoom_out': '縮小',
-  'map.note': '地域の代表点で、建物の位置ではありません\n重なる番号は見やすいよう移動しています',
+  'map.note': '地域の代表点で、建物の位置ではありません',
   'match.first': '★ 最優先', 'match.second': '次の優先候補', 'match.third': '後順位 · 要確認',
   'detail.clear': '選択解除', 'detail.clear_title': '選択解除 (Esc)', 'detail.personal': '個人向け試飲ガイド · 公式仕様ではありません',
   'detail.personal_note': '従来の個人的な嗜好メモを保持しています。メモ内の商品名・受賞・製法は個別に検証していないため、下記の出典付き商品情報を優先してください。',
