@@ -4,6 +4,7 @@ import { ALL_REGIONS, BREWERIES, VENUE, type BrandGuide, type MatchRank } from '
 import { getLocale, onLocaleChange, uiText } from '../i18n/runtime.ts';
 import { matchesQuery, searchText } from '../lib/search.ts';
 import { spreadPoints, type SpreadPoint } from '../lib/spread.ts';
+import { DEFAULT_TASTE_POINT, profileFromPoint, rankedProfiles, tasteTier, type TasteLevel, type TastePoint } from '../lib/taste-ranking.ts';
 
 const MIN_MARKER_GAP = 34;
 const theme = getComputedStyle(document.documentElement);
@@ -30,6 +31,10 @@ const noResultsEl = required<HTMLElement>('#no-results');
 const searchStatusEl = required<HTMLElement>('#search-status');
 const mapStatusEl = required<HTMLElement>('#map-status');
 const emptyEl = required<HTMLElement>('#empty');
+const listEl = required<HTMLElement>('#list');
+const tasteSummaryEl = required<HTMLElement>('#taste-summary');
+const tasteResetEl = required<HTMLButtonElement>('#taste-reset');
+const tasteCellEls = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-taste-row][data-taste-column]'));
 const rowEls = Array.from(document.querySelectorAll<HTMLButtonElement>('#list button[data-id]'));
 const detailEls = Array.from(document.querySelectorAll<HTMLElement>('#details article[data-id]'));
 if (rowEls.length === 0 || detailEls.length === 0) throw new Error('Brand list or detail panels are missing');
@@ -44,6 +49,17 @@ let region: string = ALL_REGIONS;
 let searchInput = '';
 let appliedQuery = '';
 let mapReady = false;
+
+function tasteLevel(value: string | null, fallback: TasteLevel): TasteLevel {
+  const parsed = Number(value);
+  if (parsed === 1 || parsed === 2 || parsed === 3 || parsed === 4 || parsed === 5) return parsed;
+  return fallback;
+}
+
+let tastePoint: TastePoint = {
+  row: tasteLevel(localStorage.getItem('ehime-taste-row'), DEFAULT_TASTE_POINT.row),
+  column: tasteLevel(localStorage.getItem('ehime-taste-column'), DEFAULT_TASTE_POINT.column),
+};
 
 const isVisible = (brewery: BrandGuide) =>
   (region === ALL_REGIONS || brewery.region === region) &&
@@ -119,6 +135,9 @@ function spreadMarkers() {
 function render() {
   const locale = getLocale();
   const activeId = pinId ?? hoverId;
+  const ranking = rankedProfiles(BREWERIES, tastePoint);
+  const rankById = new Map(ranking.map((brewery, index) => [brewery.id, index + 1]));
+  listEl.append(...ranking.map((brewery) => rowEls.find((row) => Number(row.dataset.id) === brewery.id)).filter((row): row is HTMLButtonElement => row !== undefined));
   let visibleCount = 0;
   for (const row of rowEls) {
     const id = Number(row.dataset.id);
@@ -126,6 +145,13 @@ function render() {
     const shown = brewery !== undefined && isVisible(brewery);
     row.hidden = !shown;
     row.setAttribute('aria-current', String(id === activeId));
+    const rank = rankById.get(id) ?? id;
+    const tier = tasteTier(rank);
+    const rankNumber = row.querySelector<HTMLElement>('[data-rank-number]');
+    if (rankNumber) {
+      rankNumber.textContent = String(rank);
+      rankNumber.style.backgroundColor = MATCH_COLOR[tier];
+    }
     if (shown) visibleCount += 1;
   }
   countEl.textContent = String(visibleCount);
@@ -136,15 +162,50 @@ function render() {
   for (const detail of detailEls) detail.hidden = Number(detail.dataset.id) !== activeId;
   emptyEl.hidden = activeId !== null;
 
+  const tasteProfile = profileFromPoint(tastePoint);
+  tasteSummaryEl.textContent = uiText(locale, 'taste-selector.selected', tasteProfile);
+  for (const cell of tasteCellEls) {
+    const row = tasteLevel(cell.dataset.tasteRow ?? null, DEFAULT_TASTE_POINT.row);
+    const column = tasteLevel(cell.dataset.tasteColumn ?? null, DEFAULT_TASTE_POINT.column);
+    const selected = row === tastePoint.row && column === tastePoint.column;
+    const cellProfile = profileFromPoint({ row, column });
+    const label = uiText(locale, 'taste-selector.cell', cellProfile);
+    cell.setAttribute('aria-pressed', String(selected));
+    cell.setAttribute('aria-label', label);
+    const hiddenLabel = cell.querySelector<HTMLElement>('[data-taste-cell-label]');
+    if (hiddenLabel) hiddenLabel.textContent = label;
+  }
+
   for (const brewery of BREWERIES) {
     const element = markerElements.get(brewery.id);
     if (!element) continue;
     element.hidden = !isVisible(brewery);
-    element.title = locale === 'ko' ? `${brewery.ko} · ${brewery.ja}` : `${brewery.ja}${brewery.brand.nameKana ? ` · ${brewery.brand.nameKana}` : ''}`;
+    const rank = rankById.get(brewery.id) ?? brewery.id;
+    const tier = tasteTier(rank);
+    element.textContent = String(rank);
+    element.style.setProperty('--marker-color', MATCH_COLOR[tier]);
+    element.title = `${uiText(locale, 'taste-selector.rank', { rank })} · ${locale === 'ko' ? `${brewery.ko} · ${brewery.ja}` : `${brewery.ja}${brewery.brand.nameKana ? ` · ${brewery.brand.nameKana}` : ''}`}`;
     element.setAttribute('role', 'button');
     element.setAttribute('aria-label', element.title);
     element.classList.toggle('is-active', brewery.id === activeId);
     element.style.zIndex = brewery.id === activeId ? '2' : '1';
+  }
+  for (const detail of detailEls) {
+    const id = Number(detail.dataset.id);
+    const rank = rankById.get(id) ?? id;
+    const tier = tasteTier(rank);
+    const rankNumber = detail.querySelector<HTMLElement>('[data-rank-number]');
+    const rankBadge = detail.querySelector<HTMLElement>('[data-rank-badge]');
+    if (rankNumber) {
+      rankNumber.textContent = String(rank);
+      rankNumber.style.backgroundColor = MATCH_COLOR[tier];
+    }
+    if (rankBadge) {
+      rankBadge.textContent = uiText(locale, 'taste-selector.rank', { rank });
+      rankBadge.style.color = MATCH_COLOR[tier];
+      rankBadge.style.borderColor = MATCH_COLOR[tier];
+    }
+    for (const bar of detail.querySelectorAll<HTMLElement>('[data-profile-bar]')) bar.style.backgroundColor = MATCH_COLOR[tier];
   }
   venueElement.title = `${uiText(locale, 'map.venue')}\n${VENUE.addr}\n${VENUE.when}`;
   const zoomIn = mapEl.querySelector<HTMLElement>('.mapboxgl-ctrl-zoom-in');
@@ -205,6 +266,25 @@ searchForm.addEventListener('reset', (event) => {
   appliedQuery = '';
   searchEl.value = '';
   applyFilters();
+});
+for (const cell of tasteCellEls) {
+  cell.addEventListener('click', () => {
+    tastePoint = {
+      row: tasteLevel(cell.dataset.tasteRow ?? null, DEFAULT_TASTE_POINT.row),
+      column: tasteLevel(cell.dataset.tasteColumn ?? null, DEFAULT_TASTE_POINT.column),
+    };
+    localStorage.setItem('ehime-taste-row', String(tastePoint.row));
+    localStorage.setItem('ehime-taste-column', String(tastePoint.column));
+    hoverId = null;
+    render();
+  });
+}
+tasteResetEl.addEventListener('click', () => {
+  tastePoint = { ...DEFAULT_TASTE_POINT };
+  localStorage.removeItem('ehime-taste-row');
+  localStorage.removeItem('ehime-taste-column');
+  hoverId = null;
+  render();
 });
 
 map.on('load', () => {

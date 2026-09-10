@@ -63,6 +63,17 @@
 }
 
 @layer components {
+  .taste-cell {
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+  }
+
+  .taste-cell[aria-pressed='true'] {
+    border-color: var(--color-foreground);
+    background: var(--color-foreground);
+    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 3px var(--color-foreground);
+  }
+
   #map.mapboxgl-map {
     position: absolute !important;
     inset: 0;

@@ -1,10 +1,11 @@
 ---
-import { BREWERIES, MATCH_LABEL, REGION_FILTERS, REGION_LABEL_KO, tasteBars } from '../data/breweries.ts';
+import { BREWERIES, REGION_FILTERS, REGION_LABEL_KO, tasteBars } from '../data/breweries.ts';
 import '../styles/global.css';
 import Sources from '../components/Sources.astro';
 import ProductCard from '../components/ProductCard.astro';
 import { ko as koMessages } from '../i18n/locales/ko.ts';
 import type { MessageKey } from '../i18n/runtime.ts';
+import { DEFAULT_TASTE_POINT, profileFromPoint, rankedProfiles, tasteTier, type TasteLevel } from '../lib/taste-ranking.ts';
 
 // 클래스명을 문자열 그대로 적어야 Tailwind 스캐너가 잡는다. 문자열 조합 금지.
 const DOT_BG: Record<number, string> = { 1: 'bg-match-1', 2: 'bg-match-2', 3: 'bg-match-3' };
@@ -31,6 +32,10 @@ const regionText = {
   中予: ['주요(마쓰야마 권역)', 'Chuyo (Matsuyama area)', '中予（松山地域）'],
   南予: ['난요(에히메 남부)', 'Nanyo (southern Ehime)', '南予（愛媛南部）'],
 } as const;
+const TASTE_LEVELS = [1, 2, 3, 4, 5] satisfies TasteLevel[];
+const DEFAULT_PROFILE = profileFromPoint(DEFAULT_TASTE_POINT);
+const INITIAL_RANKING = rankedProfiles(BREWERIES, DEFAULT_TASTE_POINT);
+const INITIAL_RANKS = new Map(INITIAL_RANKING.map((brewery, index) => [brewery.id, index + 1]));
 ---
 
 <!doctype html>
@@ -112,6 +117,40 @@ const regionText = {
       <p class="mt-4 text-xs text-muted-foreground"><span data-i18n="event.offering_unknown">{t('event.offering_unknown', '제품별 행사 제공은 미확인입니다.')}</span> <a data-i18n="event.source" data-testid="guide-event-source-open" href="https://www.ishizuchi.co.jp/?p=1669" target="_blank" rel="noreferrer" class="underline underline-offset-4">{t('event.source', '2026 공식 행사 안내')}</a></p>
     </section>
 
+    <section class={`mx-6 mt-4 flex flex-wrap items-center justify-between gap-6 p-5 ${CARD}`} aria-labelledby="taste-selector-title">
+      <div class="min-w-0 flex-1 basis-72">
+        <p data-i18n="taste-selector.eyebrow" class={EYEBROW}>{t('taste-selector.eyebrow', '취향 선택기')}</p>
+        <h2 id="taste-selector-title" data-i18n="taste-selector.heading" class="mt-2 text-lg font-semibold tracking-tight">{t('taste-selector.heading', '내 취향에 맞춰 다시 정렬')}</h2>
+        <p data-i18n="taste-selector.help" class="mt-2 max-w-[62ch] text-sm leading-relaxed text-muted-foreground">{t('taste-selector.help', '5×5 격자에서 한 칸을 골라 네 가지 맛 성향에 맞춰 추천 순서를 바꿉니다.')}</p>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <p id="taste-summary" class="font-mono text-xs text-foreground" aria-live="polite">{t('taste-selector.selected', '향 {aroma} · 바디 {body} · 산미 {acid} · 드라이 {dry}', DEFAULT_PROFILE)}</p>
+          <button type="button" id="taste-reset" data-i18n="taste-selector.reset" data-testid="guide-taste-reset" class="rounded-md border border-border px-3 py-2 text-xs transition-colors hover:bg-accent">{t('taste-selector.reset', '기본 취향')}</button>
+        </div>
+      </div>
+
+      <div class="grid shrink-0 grid-cols-[auto_1fr_auto] grid-rows-[auto_1fr_auto] items-center gap-2" role="group" data-i18n-aria="taste-selector.heading" aria-label={t('taste-selector.heading', '내 취향에 맞춰 다시 정렬')}>
+        <span data-i18n="taste-selector.aroma" class="col-start-2 row-start-1 text-center text-xs font-medium text-muted-foreground">{t('taste-selector.aroma', '향')}</span>
+        <span data-i18n="taste-selector.acid" class="col-start-1 row-start-2 text-xs font-medium text-muted-foreground">{t('taste-selector.acid', '산미')}</span>
+        <div id="taste-grid" class="col-start-2 row-start-2 grid aspect-square w-[min(15rem,62vw)] grid-cols-5 gap-1 rounded-lg border border-border bg-background p-1.5">
+          {TASTE_LEVELS.flatMap((row) => TASTE_LEVELS.map((column) => {
+            const profile = profileFromPoint({ row, column });
+            const selected = row === DEFAULT_TASTE_POINT.row && column === DEFAULT_TASTE_POINT.column;
+            return <button
+              type="button"
+              class="taste-cell rounded-sm border border-border bg-card transition-colors hover:border-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              data-taste-row={row}
+              data-taste-column={column}
+              data-testid={`guide-taste-cell-${row}-${column}`}
+              aria-label={t('taste-selector.cell', '취향 선택', profile)}
+              aria-pressed={selected}
+            ><span data-taste-cell-label class="sr-only">{t('taste-selector.cell', '취향 선택', profile)}</span></button>;
+          }))}
+        </div>
+        <span data-i18n="taste-selector.dry" class="col-start-3 row-start-2 text-xs font-medium text-muted-foreground">{t('taste-selector.dry', '드라이')}</span>
+        <span data-i18n="taste-selector.body" class="col-start-2 row-start-3 text-center text-xs font-medium text-muted-foreground">{t('taste-selector.body', '바디')}</span>
+      </div>
+    </section>
+
     <main class="flex min-h-0 flex-1 flex-col split:flex-row split:items-stretch">
       <aside
         class="flex max-h-[min(52vh,420px)] w-full flex-col border-b border-border split:max-h-[min(72vh,520px)] split:w-80 split:flex-none split:border-r split:border-b-0"
@@ -135,7 +174,10 @@ const regionText = {
         <p id="no-results" data-i18n="search.none" hidden role="status" class="p-4 text-sm text-muted-foreground">{t('search.none', '검색 결과가 없습니다. 검색어나 지역을 바꿔 보세요.')}</p>
         <div id="list" class="overflow-y-auto p-2">
           {
-            BREWERIES.map((b) => (
+            INITIAL_RANKING.map((b) => {
+              const initialRank = INITIAL_RANKS.get(b.id) ?? b.id;
+              const initialTier = tasteTier(initialRank);
+              return (
               <button
                 type="button"
                 data-testid={`guide-brand-select-${b.id}`}
@@ -144,9 +186,10 @@ const regionText = {
                 class="group mb-1 flex w-full items-center gap-3 rounded-md border border-border px-2.5 py-2 text-left transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-[current=true]:bg-accent"
               >
                 <span
-                  class={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums text-background transition-colors group-aria-[current=true]:bg-foreground ${DOT_BG[b.match]}`}
+                  data-rank-number
+                  class={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums text-background transition-colors group-aria-[current=true]:bg-foreground ${DOT_BG[initialTier]}`}
                 >
-                  {b.id}
+                  {initialRank}
                 </span>
                 <span class="min-w-0">
                   <span class="flex flex-wrap items-baseline gap-x-2">
@@ -158,7 +201,7 @@ const regionText = {
                   </span>
                 </span>
               </button>
-            ))
+            )})
           }
         </div>
       </aside>
@@ -205,12 +248,13 @@ const regionText = {
             <div class="flex-1 basis-85 space-y-0">
               <div class="flex items-center gap-2.5">
                 <span
-                  class={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums text-background ${DOT_BG[b.match]}`}
+                  data-rank-number
+                  class={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums text-background ${DOT_BG[tasteTier(INITIAL_RANKS.get(b.id) ?? b.id)]}`}
                 >
-                  {b.id}
+                  {INITIAL_RANKS.get(b.id) ?? b.id}
                 </span>
-                <span class={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${BADGE[b.match]}`}>
-                  <span data-i18n={['', 'match.first', 'match.second', 'match.third'][b.match]}>{MATCH_LABEL[b.match]}</span>
+                <span data-rank-badge class={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${BADGE[tasteTier(INITIAL_RANKS.get(b.id) ?? b.id)]}`}>
+                  {t('taste-selector.rank', '추천 {rank}위', { rank: INITIAL_RANKS.get(b.id) ?? b.id })}
                 </span>
               </div>
 
@@ -226,7 +270,7 @@ const regionText = {
                   <div class="grid grid-cols-[3.5rem_1fr_2rem] items-center gap-2.5">
                     <span data-i18n={['taste.body', 'taste.acid', 'taste.aroma', 'taste.dry'][index]} class="text-xs text-muted-foreground">{bar.label}</span>
                     <span class="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <span class={`block h-full rounded-full ${BAR_BG[b.match]}`} style={`width:${bar.value * 20}%`} />
+                      <span data-profile-bar class={`block h-full rounded-full ${BAR_BG[b.match]}`} style={`width:${bar.value * 20}%`} />
                     </span>
                     <span class="text-right font-mono text-[10.5px] tabular-nums text-muted-foreground">
                       {bar.value}/5
