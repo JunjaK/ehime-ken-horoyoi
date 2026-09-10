@@ -129,7 +129,7 @@ const INITIAL_RANKS = new Map(INITIAL_RANKING.map((brewery, index) => [brewery.i
       <p class="mt-4 text-xs text-muted-foreground"><span data-i18n="event.offering_unknown">{t('event.offering_unknown', '제품별 행사 제공은 미확인입니다.')}</span> <a data-i18n="event.source" data-testid="guide-event-source-open" href="https://www.ishizuchi.co.jp/?p=1669" target="_blank" rel="noreferrer" class="underline underline-offset-4">{t('event.source', '2026 공식 행사 안내')}</a></p>
     </section>
 
-    <section class={`mx-6 mt-4 flex flex-wrap items-center justify-between gap-6 p-5 ${CARD}`} aria-labelledby="taste-selector-title">
+    <section class={`mx-3 mt-4 flex flex-wrap items-center justify-between gap-6 p-4 sm:mx-6 sm:p-5 ${CARD}`} aria-labelledby="taste-selector-title">
       <div class="min-w-0 flex-1 basis-72">
         <p data-i18n="taste-selector.eyebrow" class={EYEBROW}>{t('taste-selector.eyebrow', '취향 선택기')}</p>
         <h2 id="taste-selector-title" data-i18n="taste-selector.heading" class="mt-2 text-lg font-semibold tracking-tight">{t('taste-selector.heading', '내 취향에 맞춰 다시 정렬')}</h2>
@@ -140,11 +140,11 @@ const INITIAL_RANKS = new Map(INITIAL_RANKING.map((brewery, index) => [brewery.i
         </div>
       </div>
 
-      <div class="shrink-0">
-      <div class="grid grid-cols-[auto_1fr_auto] grid-rows-[auto_1fr_auto] items-center gap-2" role="group" data-i18n-aria="taste-selector.heading" aria-label={t('taste-selector.heading', '내 취향에 맞춰 다시 정렬')}>
-        <span data-i18n="taste-selector.aroma_high" class="col-start-2 row-start-1 justify-self-center rounded-md border border-border bg-muted/40 px-2 py-1 text-center text-xs font-medium text-muted-foreground">{t('taste-selector.aroma_high', '향이 높음')}</span>
-        <span data-i18n="taste-selector.taste_light" class="col-start-1 row-start-2 max-w-10 rounded-md border border-border bg-muted/40 px-1 py-1.5 text-center text-xs font-medium text-muted-foreground">{t('taste-selector.taste_light', '맛이 산뜻함')}</span>
-        <div id="taste-grid" class="col-start-2 row-start-2 grid aspect-square w-[min(15rem,62vw)] grid-cols-5 gap-1 rounded-lg border border-border bg-background p-1.5">
+      <div class="w-full max-w-[21rem] shrink">
+      <div class="grid w-full grid-cols-2 grid-rows-[auto_auto_1fr_auto] items-center justify-center gap-2 split:grid-cols-[2.5rem_minmax(0,15rem)_2.5rem] split:grid-rows-[auto_1fr_auto]" role="group" data-i18n-aria="taste-selector.heading" aria-label={t('taste-selector.heading', '내 취향에 맞춰 다시 정렬')}>
+        <span data-i18n="taste-selector.aroma_high" class="col-span-2 row-start-1 justify-self-center rounded-md border border-border bg-muted/40 px-2 py-1 text-center text-xs font-medium text-muted-foreground split:col-span-1 split:col-start-2">{t('taste-selector.aroma_high', '향이 높음')}</span>
+        <span data-i18n="taste-selector.taste_light" class="col-start-1 row-start-2 justify-self-start rounded-md border border-border bg-muted/40 px-2 py-1 text-center text-xs font-medium text-muted-foreground split:max-w-10 split:px-1 split:py-1.5">{t('taste-selector.taste_light', '맛이 산뜻함')}</span>
+        <div id="taste-grid" class="col-span-2 row-start-3 grid aspect-square w-full max-w-60 justify-self-center grid-cols-5 gap-1 rounded-lg border border-border bg-background p-1.5 split:col-span-1 split:col-start-2 split:row-start-2">
           {TASTE_LEVELS.flatMap((row) => TASTE_LEVELS.map((column) => {
             const cellVariables = tasteVariables({ row, column });
             const selected = row === DEFAULT_TASTE_POINT.row && column === DEFAULT_TASTE_POINT.column;
@@ -159,10 +159,10 @@ const INITIAL_RANKS = new Map(INITIAL_RANKING.map((brewery, index) => [brewery.i
             ><span data-taste-cell-label class="sr-only">{t('taste-selector.cell', '취향 선택', cellVariables)}</span></button>;
           }))}
         </div>
-        <span data-i18n="taste-selector.taste_rich" class="col-start-3 row-start-2 max-w-10 rounded-md border border-border bg-muted/40 px-1 py-1.5 text-center text-xs font-medium text-muted-foreground">{t('taste-selector.taste_rich', '맛이 진함')}</span>
-        <span data-i18n="taste-selector.aroma_low" class="col-start-2 row-start-3 justify-self-center rounded-md border border-border bg-muted/40 px-2 py-1 text-center text-xs font-medium text-muted-foreground">{t('taste-selector.aroma_low', '향이 잔잔함')}</span>
+        <span data-i18n="taste-selector.taste_rich" class="col-start-2 row-start-2 justify-self-end rounded-md border border-border bg-muted/40 px-2 py-1 text-center text-xs font-medium text-muted-foreground split:col-start-3 split:max-w-10 split:px-1 split:py-1.5">{t('taste-selector.taste_rich', '맛이 진함')}</span>
+        <span data-i18n="taste-selector.aroma_low" class="col-span-2 row-start-4 justify-self-center rounded-md border border-border bg-muted/40 px-2 py-1 text-center text-xs font-medium text-muted-foreground split:col-span-1 split:col-start-2 split:row-start-3">{t('taste-selector.aroma_low', '향이 잔잔함')}</span>
       </div>
-      <div class="mx-auto mt-3 grid w-[min(22rem,85vw)] grid-cols-2 gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
+      <div class="mt-3 grid w-full grid-cols-2 gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
         <span data-i18n="taste-selector.kunshu_note">{t('taste-selector.kunshu_note', '薫酒 · 향이 높고 산뜻함')}</span>
         <span data-i18n="taste-selector.jukushu_note" class="text-right">{t('taste-selector.jukushu_note', '熟酒 · 향이 높고 맛이 진함')}</span>
         <span data-i18n="taste-selector.soshu_note">{t('taste-selector.soshu_note', '爽酒 · 향이 잔잔하고 산뜻함')}</span>

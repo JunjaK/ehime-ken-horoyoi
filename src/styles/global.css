@@ -64,8 +64,8 @@
 
 @layer components {
   .taste-cell {
-    min-width: 1.75rem;
-    min-height: 1.75rem;
+    min-width: 0;
+    min-height: 0;
   }
 
   .taste-cell[aria-pressed='true'] {
