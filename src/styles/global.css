@@ -123,22 +123,20 @@
     font-size: 0.75rem;
     font-weight: 700;
     box-shadow: 0 2px 9px oklch(0 0 0 / 55%);
-    transition: scale 150ms ease, background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
     cursor: pointer;
   }
 
   .mapbox-brand-marker:focus-visible {
-    scale: 1.22;
     box-shadow: 0 0 0 3px var(--color-foreground), 0 4px 12px oklch(0 0 0 / 60%);
     outline: none;
   }
 
   .mapbox-brand-marker.is-active {
-    scale: 1.3;
     border-color: var(--marker-color);
     background: var(--color-foreground);
     color: var(--color-background);
-    box-shadow: 0 0 0 3px var(--marker-color), 0 0 0 5px var(--color-foreground), 0 5px 14px oklch(0 0 0 / 65%);
+    box-shadow: 0 2px 9px oklch(0 0 0 / 55%);
     outline: none;
   }
 

@@ -227,7 +227,7 @@ function pin(id: number, fromMap = false) {
   const alreadyPinned = pinId === id;
   pinId = alreadyPinned ? null : id;
   const brewery = byId.get(id);
-  if (!alreadyPinned && brewery) map.flyTo({ center: [brewery.lng, brewery.lat], zoom: Math.max(map.getZoom(), 10), duration: 600 });
+  if (!fromMap && !alreadyPinned && brewery) map.flyTo({ center: [brewery.lng, brewery.lat], zoom: Math.max(map.getZoom(), 10), duration: 600 });
   render();
   if (fromMap && !alreadyPinned) revealListRow(id);
 }
