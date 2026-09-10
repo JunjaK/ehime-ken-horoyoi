@@ -1,10 +1,10 @@
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { ALL_REGIONS, BREWERIES, VENUE, type BrandGuide, type MatchRank } from '../data/breweries.ts';
-import { getLocale, onLocaleChange, uiText } from '../i18n/runtime.ts';
+import { getLocale, onLocaleChange, uiText, type MessageKey } from '../i18n/runtime.ts';
 import { matchesQuery, searchText } from '../lib/search.ts';
 import { spreadPoints, type SpreadPoint } from '../lib/spread.ts';
-import { DEFAULT_TASTE_POINT, profileFromPoint, rankedProfiles, tasteTier, type TasteLevel, type TastePoint } from '../lib/taste-ranking.ts';
+import { DEFAULT_TASTE_POINT, profileFromPoint, rankedProfiles, tasteQuadrant, tasteTier, type TasteLevel, type TastePoint, type TasteQuadrant } from '../lib/taste-ranking.ts';
 
 const MIN_MARKER_GAP = 34;
 const theme = getComputedStyle(document.documentElement);
@@ -15,6 +15,10 @@ const MATCH_COLOR: Record<MatchRank, string> = {
   3: token('--color-match-3'),
 };
 const VENUE_ID = 0;
+const QUADRANT_KEYS = {
+  kunshu: 'taste-selector.kunshu', jukushu: 'taste-selector.jukushu', soshu: 'taste-selector.soshu',
+  junshu: 'taste-selector.junshu', balanced: 'taste-selector.balanced',
+} satisfies Record<TasteQuadrant, MessageKey>;
 
 function required<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -41,6 +45,10 @@ if (rowEls.length === 0 || detailEls.length === 0) throw new Error('Brand list o
 
 const byId = new Map(BREWERIES.map((brewery) => [brewery.id, brewery]));
 const searchIndex = new Map(BREWERIES.map((brewery) => [brewery.id, searchText(brewery)]));
+const rankingProfiles = BREWERIES.map((brewery) => ({
+  ...brewery,
+  tastePenalty: brewery.products.length > 0 && brewery.products.every((product) => product.kind === 'shochu') ? 40 : 0,
+}));
 const markers = new Map<number, mapboxgl.Marker>();
 const markerElements = new Map<number, HTMLButtonElement>();
 let hoverId: number | null = null;
@@ -57,9 +65,15 @@ function tasteLevel(value: string | null, fallback: TasteLevel): TasteLevel {
 }
 
 let tastePoint: TastePoint = {
-  row: tasteLevel(localStorage.getItem('ehime-taste-row'), DEFAULT_TASTE_POINT.row),
-  column: tasteLevel(localStorage.getItem('ehime-taste-column'), DEFAULT_TASTE_POINT.column),
+  row: tasteLevel(localStorage.getItem('ehime-taste-v2-row'), DEFAULT_TASTE_POINT.row),
+  column: tasteLevel(localStorage.getItem('ehime-taste-v2-column'), DEFAULT_TASTE_POINT.column),
 };
+
+function tasteTextVariables(locale: ReturnType<typeof getLocale>, point: TastePoint) {
+  const profile = profileFromPoint(point);
+  const quadrant = tasteQuadrant(point);
+  return { aroma: profile.aroma, body: profile.body, type: uiText(locale, QUADRANT_KEYS[quadrant]) };
+}
 
 const isVisible = (brewery: BrandGuide) =>
   (region === ALL_REGIONS || brewery.region === region) &&
@@ -135,7 +149,7 @@ function spreadMarkers() {
 function render() {
   const locale = getLocale();
   const activeId = pinId ?? hoverId;
-  const ranking = rankedProfiles(BREWERIES, tastePoint);
+  const ranking = rankedProfiles(rankingProfiles, tastePoint);
   const rankById = new Map(ranking.map((brewery, index) => [brewery.id, index + 1]));
   listEl.append(...ranking.map((brewery) => rowEls.find((row) => Number(row.dataset.id) === brewery.id)).filter((row): row is HTMLButtonElement => row !== undefined));
   let visibleCount = 0;
@@ -162,14 +176,12 @@ function render() {
   for (const detail of detailEls) detail.hidden = Number(detail.dataset.id) !== activeId;
   emptyEl.hidden = activeId !== null;
 
-  const tasteProfile = profileFromPoint(tastePoint);
-  tasteSummaryEl.textContent = uiText(locale, 'taste-selector.selected', tasteProfile);
+  tasteSummaryEl.textContent = uiText(locale, 'taste-selector.selected', tasteTextVariables(locale, tastePoint));
   for (const cell of tasteCellEls) {
     const row = tasteLevel(cell.dataset.tasteRow ?? null, DEFAULT_TASTE_POINT.row);
     const column = tasteLevel(cell.dataset.tasteColumn ?? null, DEFAULT_TASTE_POINT.column);
     const selected = row === tastePoint.row && column === tastePoint.column;
-    const cellProfile = profileFromPoint({ row, column });
-    const label = uiText(locale, 'taste-selector.cell', cellProfile);
+    const label = uiText(locale, 'taste-selector.cell', tasteTextVariables(locale, { row, column }));
     cell.setAttribute('aria-pressed', String(selected));
     cell.setAttribute('aria-label', label);
     const hiddenLabel = cell.querySelector<HTMLElement>('[data-taste-cell-label]');
@@ -273,16 +285,16 @@ for (const cell of tasteCellEls) {
       row: tasteLevel(cell.dataset.tasteRow ?? null, DEFAULT_TASTE_POINT.row),
       column: tasteLevel(cell.dataset.tasteColumn ?? null, DEFAULT_TASTE_POINT.column),
     };
-    localStorage.setItem('ehime-taste-row', String(tastePoint.row));
-    localStorage.setItem('ehime-taste-column', String(tastePoint.column));
+    localStorage.setItem('ehime-taste-v2-row', String(tastePoint.row));
+    localStorage.setItem('ehime-taste-v2-column', String(tastePoint.column));
     hoverId = null;
     render();
   });
 }
 tasteResetEl.addEventListener('click', () => {
   tastePoint = { ...DEFAULT_TASTE_POINT };
-  localStorage.removeItem('ehime-taste-row');
-  localStorage.removeItem('ehime-taste-column');
+  localStorage.removeItem('ehime-taste-v2-row');
+  localStorage.removeItem('ehime-taste-v2-column');
   hoverId = null;
   render();
 });
