@@ -91,7 +91,7 @@ function markerElement(brewery: BrandGuide) {
   element.addEventListener('mouseleave', () => { hoverId = null; render(); });
   element.addEventListener('focus', () => { hoverId = brewery.id; render(); });
   element.addEventListener('blur', () => { hoverId = null; render(); });
-  element.addEventListener('click', () => pin(brewery.id));
+  element.addEventListener('click', () => pin(brewery.id, true));
   return element;
 }
 
@@ -159,12 +159,13 @@ function render() {
     const shown = brewery !== undefined && isVisible(brewery);
     row.hidden = !shown;
     row.setAttribute('aria-current', String(id === activeId));
+    row.setAttribute('aria-pressed', String(id === activeId));
     const rank = rankById.get(id) ?? id;
     const tier = tasteTier(rank);
     const rankNumber = row.querySelector<HTMLElement>('[data-rank-number]');
     if (rankNumber) {
       rankNumber.textContent = String(rank);
-      rankNumber.style.backgroundColor = MATCH_COLOR[tier];
+      rankNumber.style.backgroundColor = id === activeId ? 'var(--color-foreground)' : MATCH_COLOR[tier];
     }
     if (shown) visibleCount += 1;
   }
@@ -199,6 +200,7 @@ function render() {
     element.title = `${uiText(locale, 'taste-selector.rank', { rank })} · ${locale === 'ko' ? `${brewery.ko} · ${brewery.ja}` : `${brewery.ja}${brewery.brand.nameKana ? ` · ${brewery.brand.nameKana}` : ''}`}`;
     element.setAttribute('role', 'button');
     element.setAttribute('aria-label', element.title);
+    element.setAttribute('aria-pressed', String(brewery.id === activeId));
     element.classList.toggle('is-active', brewery.id === activeId);
     element.style.zIndex = brewery.id === activeId ? '2' : '1';
   }
@@ -228,13 +230,27 @@ function render() {
   zoomOut?.setAttribute('title', uiText(locale, 'map.zoom_out'));
 }
 
-function pin(id: number) {
+function revealListRow(id: number) {
+  const row = rowEls.find((candidate) => Number(candidate.dataset.id) === id);
+  if (!row) return;
+  const listRect = listEl.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const rowTop = rowRect.top - listRect.top + listEl.scrollTop;
+  const rowBottom = rowTop + rowRect.height;
+  const viewTop = listEl.scrollTop;
+  const viewBottom = viewTop + listEl.clientHeight;
+  if (rowTop < viewTop) listEl.scrollTo({ top: rowTop, behavior: 'smooth' });
+  else if (rowBottom > viewBottom) listEl.scrollTo({ top: rowBottom - listEl.clientHeight, behavior: 'smooth' });
+}
+
+function pin(id: number, fromMap = false) {
   const alreadyPinned = pinId === id;
   pinId = alreadyPinned ? null : id;
   hoverId = null;
   const brewery = byId.get(id);
   if (!alreadyPinned && brewery) map.flyTo({ center: [brewery.lng, brewery.lat], zoom: Math.max(map.getZoom(), 10), duration: 600 });
   render();
+  if (fromMap && !alreadyPinned) revealListRow(id);
 }
 
 function clearSelection() {
